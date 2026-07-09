@@ -4,11 +4,17 @@
 #   scripts/aios-wire-repo.sh <repo-path> <scope> [project-slug]
 #   scripts/aios-wire-repo.sh --check <repo-path>
 #
-# Does exactly two things, both idempotent:
+# Options:
+#   --no-claude-md   skip writing CLAUDE.local.md
+#
+# Does exactly three things, all idempotent:
 #   1. Adds a row to the vault's AIOS/Systems/repo-layers.tsv (a real TAB).
 #   2. Merges two hooks into the REPO's .claude/settings.json:
 #        SessionStart -> aios-context.sh   (loads that project's brain)
 #        Stop         -> aios-digest.sh    (queues a session digest)
+#   3. Writes CLAUDE.local.md in the repo — a durable pointer at the vault, for
+#      the contexts where the SessionStart hook does not run (subagents, claude -p,
+#      other editors). Never overwrites an existing one. Ensures it is git-ignored.
 #
 # This installer is the ONLY thing in AIOS that writes to a code repo. The hooks
 # it installs write only to the vault, never back to the repo.
@@ -20,8 +26,20 @@ VAULT="${AIOS_VAULT:-$(cd "$(dirname "$0")/.." && pwd)}"
 MANIFEST="$VAULT/AIOS/Systems/repo-layers.tsv"
 LAYERS="$VAULT/AIOS/Systems/layers.tsv"
 HOOKS="$VAULT/AIOS/Systems/hooks"
+TMPL="$VAULT/AIOS/Systems/templates/CLAUDE.local.md.tmpl"
 
 die() { echo "error: $*" >&2; exit 1; }
+
+# Strip flags out of the positional args.
+WRITE_CLAUDE_MD=1
+args=()
+for a in "$@"; do
+  case "$a" in
+    --no-claude-md) WRITE_CLAUDE_MD=0 ;;
+    *) args+=("$a") ;;
+  esac
+done
+set -- "${args[@]+"${args[@]}"}"
 
 command -v jq >/dev/null || die "jq is required (brew install jq)"
 [ -f "$MANIFEST" ] || die "no manifest at $MANIFEST — is AIOS_VAULT right? (got: $VAULT)"
@@ -46,6 +64,15 @@ if [ "${1:-}" = "--check" ]; then
       && echo "digest:   wired" || echo "digest:   MISSING"
   else
     echo "settings: MISSING ($s)"
+  fi
+  if [ -f "$repo/CLAUDE.local.md" ]; then
+    if git -C "$repo" check-ignore -q CLAUDE.local.md 2>/dev/null; then
+      echo "local-md: present, git-ignored"
+    else
+      echo "local-md: present but NOT git-ignored — it will be committed"
+    fi
+  else
+    echo "local-md: MISSING"
   fi
   exit 0
 fi
@@ -107,6 +134,33 @@ if cmp -s "$TMP" "$SETTINGS"; then
 else
   mv "$TMP" "$SETTINGS"
   echo "settings: wired    $SETTINGS"
+fi
+
+# 3. CLAUDE.local.md -----------------------------------------------------------
+# The SessionStart hook covers interactive sessions. This covers everything else:
+# subagents, `claude -p`, other editors — anywhere the hook does not fire.
+if [ "$WRITE_CLAUDE_MD" = "1" ]; then
+  LOCAL_MD="$REPO/CLAUDE.local.md"
+  if [ -e "$LOCAL_MD" ]; then
+    echo "local-md: already exists — left alone (delete it to regenerate)"
+  elif [ ! -f "$TMPL" ]; then
+    echo "local-md: SKIPPED — template missing at $TMPL"
+  else
+    sed -e "s#{{SCOPE}}#$SCOPE#g" -e "s#{{PROJECT}}#$PROJECT#g" -e "s#{{VAULT}}#$VAULT#g" \
+      "$TMPL" > "$LOCAL_MD"
+    echo "local-md: wrote    $LOCAL_MD"
+  fi
+
+  # Make sure it never gets committed. Prefer .git/info/exclude: it is local-only,
+  # so we never mutate a tracked .gitignore that the whole team shares.
+  if [ -e "$LOCAL_MD" ] && ! git -C "$REPO" check-ignore -q CLAUDE.local.md 2>/dev/null; then
+    EXCLUDE="$(git -C "$REPO" rev-parse --git-dir)/info/exclude"
+    [ "${EXCLUDE#/}" = "$EXCLUDE" ] && EXCLUDE="$REPO/$EXCLUDE"   # relative git-dir
+    mkdir -p "$(dirname "$EXCLUDE")"
+    printf 'CLAUDE.local.md\n' >> "$EXCLUDE"
+    echo "ignore:   added CLAUDE.local.md to $EXCLUDE"
+    echo "          (local-only. If the whole team uses AIOS, put it in .gitignore instead.)"
+  fi
 fi
 
 cat <<EOF

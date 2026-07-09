@@ -49,17 +49,20 @@ scripts/aios-wire-repo.sh ~/code/acme-api work
 scripts/aios-wire-repo.sh ~/code/side-thing personal my-side-thing
 ```
 
-It does exactly two things, both idempotent:
+It does exactly three things, all idempotent:
 
 1. **Adds a row** to `AIOS/Systems/repo-layers.tsv` — `<repo-dir><TAB><scope><TAB><project-slug>`.
    Column 1 is the directory **basename**, not the git remote name.
 2. **Merges two hooks** into the repo's `.claude/settings.json`:
    - `SessionStart` → `aios-context.sh`
    - `Stop` → `aios-digest.sh`
+3. **Writes `CLAUDE.local.md`** in the repo and makes sure it's git-ignored. See below.
 
 It refuses to invent a scope: the scope must already exist in `AIOS/Systems/layers.tsv`, with its `me-<scope>.md`, `Sources/<scope>/`, and `AIOS/Projects/<scope>/`. It also refuses to remap a repo that's already mapped elsewhere, because `aios_lookup` takes the **first** matching row — a second row would sit there losing silently.
 
-An existing `settings.json` is merged, never replaced. Invalid JSON is refused rather than overwritten.
+An existing `settings.json` is merged, never replaced. Invalid JSON is refused rather than overwritten. An existing `CLAUDE.local.md` is never touched.
+
+Pass `--no-claude-md` to wire only the hooks and the manifest.
 
 ### Check it
 
@@ -72,6 +75,7 @@ repo:     /Users/you/code/acme-api
 manifest: acme-api work acme-api
 context:  wired
 digest:   wired
+local-md: present, git-ignored
 ```
 
 Then start a session in the repo. `SessionStart` should print:
@@ -85,6 +89,45 @@ Then start a session in the repo. `SessionStart` should print:
 ### Should `.claude/settings.json` be committed?
 
 Commit it if your team shares the wiring. Keep it in `.git/info/exclude` if the vault is yours alone — the hook paths are absolute and point into *your* home directory.
+
+---
+
+## 2b. `CLAUDE.local.md` — the durable pointer
+
+The `SessionStart` hook injects the brain into every **interactive** session. That covers most of the time, and it's why `CLAUDE.local.md` deliberately does *not* duplicate that content.
+
+What the hook doesn't cover: subagents, `claude -p` runs, other editors and tools, and any session where the hook isn't wired yet. In those contexts nothing tells the agent that a vault exists. `CLAUDE.local.md` does.
+
+Claude Code loads memory files in a fixed order and **concatenates** them — enterprise policy, then `~/.claude/CLAUDE.md`, then the project's `CLAUDE.md`, then `CLAUDE.local.md`. Local instructions are the last thing read at each level, and they don't override the shared `CLAUDE.md`; both are in context. That's exactly the property you want here: the repo's own committed instructions stay authoritative, and your pointer at the vault rides alongside them.
+
+The generated file records three things:
+
+- **Which scope and project this repo maps to**, so the agent knows which `me-<scope>.md` governs it.
+- **Where the brain, the identity file, and the log live** — as paths, plus an instruction not to re-read them if the hook already injected them.
+- **That the vault is written through `/aios-log`, never by hand**, and that nothing gets copied between repo and vault manually.
+
+It also carries a commented-out confidentiality block. Fill it in for any scope with proprietary or private material; delete it otherwise. Silence reads as "unknown."
+
+### Why a prose pointer, not an `@` import
+
+Claude Code supports `@path/to/file` imports in memory files: relative, absolute, and `~/`-relative paths all work, nesting up to four levels, and a `@path` inside backticks or a fenced code block is not treated as an import.
+
+The template shows an import line but leaves it inert, in backticks. Two reasons:
+
+1. **The hook already loads that content.** Importing `me-<scope>.md` on top of it is a second copy in context, for nothing.
+2. **The behavior of an import pointing at a missing file is not documented.** A teammate who clones the repo without the vault — or keeps it at a different path — hits an unspecified failure. Prose degrades to a dead path in a comment. An import might not.
+
+If you want the scope's rules loaded verbatim anyway, strip the backticks from that line. It's your machine.
+
+### Keeping it out of git
+
+The installer never edits a tracked `.gitignore`. If the file isn't already ignored, it appends `CLAUDE.local.md` to `.git/info/exclude`, which is local to your clone.
+
+That's the right default when you're the only one using AIOS. If the whole team is, put `CLAUDE.local.md` in the shared `.gitignore` instead — the installer detects an existing ignore rule and won't add a duplicate.
+
+Either way, `--check` will tell you if the file exists but is *not* ignored, which is the one state that gets someone's private notes committed.
+
+> A global git `init.templateDir` can seed `.git/info/exclude` for every repo you create. If yours already ignores `CLAUDE.local.md`, the installer's ignore step correctly does nothing.
 
 ---
 

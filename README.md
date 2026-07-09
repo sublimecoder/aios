@@ -48,6 +48,7 @@ If you'd rather see what it's going to ask before you commit to anything, read [
 | `AIOS/Maps/Knowledge Map.md` | The read-first index of what the wiki knows. |
 | `AIOS/Skills/*.md` | ~25 plain-markdown skills. Portable across tools. |
 | `AIOS/Systems/hooks/` | The cross-repo wire (below). |
+| `AIOS/Systems/templates/` | `CLAUDE.local.md` scaffold dropped into each wired repo. |
 | `.claude/agents/` | Subagents that keep read-heavy work out of your main context. |
 | `.claude/hooks/vault-write-guard.sh` | Mechanically enforces the vault's invariants. |
 | `scripts/aios-wire-repo.sh` | Connects a code repo to the vault. Idempotent; the only thing here that writes to a repo. |
@@ -62,10 +63,11 @@ scripts/aios-wire-repo.sh ~/code/acme-api work    # one command per repo
 scripts/aios-install-nightly.sh                   # drain the queue at 03:00
 ```
 
-Wiring a repo adds a row to `AIOS/Systems/repo-layers.tsv` and merges two hooks into *that repo's* `.claude/settings.json`:
+Wiring a repo adds a row to `AIOS/Systems/repo-layers.tsv`, merges two hooks into *that repo's* `.claude/settings.json`, and drops a git-ignored `CLAUDE.local.md` pointing back at the vault:
 
 - **SessionStart** → `aios-context.sh` loads that project's accumulated brain into the session, so the agent starts knowing what it learned last time.
 - **Stop** → `aios-digest.sh` appends a signal-only digest (branch, commits, diff-stat, any native memory that changed) to a queue in the vault.
+- **`CLAUDE.local.md`** names the scope, points at the brain, and states the rule that the vault is written through `/aios-log` and never by hand. It's the durable layer for the contexts a hook doesn't reach — subagents, `claude -p`, other editors.
 
 Both hooks write **only to the vault**, never to the invoking repo. A repo that isn't in the manifest is a silent no-op — the scope is never guessed.
 
@@ -102,7 +104,7 @@ Every moving part has a self-check. None of them touch your real vault, LaunchAg
 
 ```bash
 bash .claude/hooks/test_vault_write_guard.sh   # 21 passed, 0 failed
-bash scripts/test_aios_wire_repo.sh            # 14 passed, 0 failed
+bash scripts/test_aios_wire_repo.sh            # 25 passed, 0 failed
 bash scripts/test_aios_install_nightly.sh      # 15 passed, 0 failed
 ```
 

@@ -83,7 +83,9 @@ Do these in order. Verify each before moving on.
    scripts/aios-wire-repo.sh <repo-path> <scope> [project-slug]
    ```
 
-   It adds the manifest row (real tabs) and merges the `SessionStart` → `aios-context.sh` and `Stop` → `aios-digest.sh` hooks into that repo's `.claude/settings.json`, preserving anything already there. Idempotent. It refuses an unknown scope, a non-git directory, and a conflicting remap.
+   It adds the manifest row (real tabs), merges the `SessionStart` → `aios-context.sh` and `Stop` → `aios-digest.sh` hooks into that repo's `.claude/settings.json` preserving anything already there, and writes a git-ignored `CLAUDE.local.md` naming the scope and pointing at the vault. Idempotent. It refuses an unknown scope, a non-git directory, and a conflicting remap, and never overwrites an existing `CLAUDE.local.md`.
+
+   The hook covers interactive sessions; `CLAUDE.local.md` covers the rest (subagents, `claude -p`, other editors). Fill in — or delete — its commented confidentiality block for each scope; leaving it blank reads as "unknown". Pass `--no-claude-md` to skip it.
 
    Both hooks write **only** to the vault, never to the invoking repo. Tell the user to set `AIOS_VAULT` in their shell rc if the vault isn't at `~/code/aios`.
 
@@ -174,7 +176,7 @@ Full wiring reference: `docs/install.md`.
 | `AIOS/Systems/hooks/` | The cross-repo wire: sessions in other repos feed this vault, never the reverse. |
 | `.claude/agents/` | Subagents that keep read-heavy work out of your main context. |
 | `.claude/hooks/vault-write-guard.sh` | Mechanically enforces: `Sources/` immutable, no AI-authored `Atlas/` notes, and (optionally) the scope wall. |
-| `scripts/aios-wire-repo.sh` | Connects a code repo to the vault, idempotently. |
+| `scripts/aios-wire-repo.sh` | Connects a code repo to the vault, idempotently. Also writes its `CLAUDE.local.md`. |
 | `scripts/aios-install-nightly.sh` | Schedules the nightly ingest so the vault compounds unattended. |
 
 The design bet: **a hand-curated `Knowledge Map` read first beats vector search** until you're well into the hundreds of notes. Embeddings are the last resort, not the default.

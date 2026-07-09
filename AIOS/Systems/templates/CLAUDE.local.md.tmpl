@@ -1,0 +1,42 @@
+# Local — AIOS pointer (not committed)
+
+This repo maps to the **{{SCOPE}}** scope of an AIOS vault, as project `{{PROJECT}}`.
+
+Vault: `{{VAULT}}`
+
+## Where this project's knowledge lives
+
+| What | Where |
+|---|---|
+| Accumulated brain (architecture, conventions, gotchas) | `{{VAULT}}/AIOS/Projects/{{SCOPE}}/{{PROJECT}}.md` |
+| How I work in this scope, and what's confidential | `{{VAULT}}/AIOS/me-{{SCOPE}}.md` |
+| Dated decision log | `{{VAULT}}/AIOS/History/Log.md` |
+
+A `SessionStart` hook already reads the first two into context at the start of every interactive session, so **don't re-read them unprompted** — check whether they're already above before opening them.
+
+This file exists for when that hook doesn't run: a subagent, a `claude -p` invocation, a different editor or tool. It tells you where the knowledge is even when nothing injected it.
+
+## Rules for this repo
+
+- **The vault is written through `/aios-log`, never by hand.** `/aios-log <fact>` captures a durable decision into `{{VAULT}}`, auto-detecting scope and project from the working directory. It never touches this repo.
+- **Never copy vault content into this repo**, and never hand-edit vault notes from here. The `Stop` hook queues a session digest automatically; `/aios-ingest` compounds it later.
+- A fact worth writing down is one you'd otherwise re-learn in three weeks. Everything else can wait for the digest.
+
+<!-- CONFIDENTIALITY: replace with this scope's real rule, or delete the section.
+     Example for an employer scope:
+       Everything in this repo is employer-proprietary. Never paste code,
+       architecture, ticket IDs, or internal URLs anywhere public. -->
+
+## Optional: import the scope's rules verbatim
+
+The pointer above is deliberately prose, not an `@` import, so this file still works on a machine where the vault lives elsewhere or isn't cloned yet.
+
+If you want the scope's working rules loaded into every session, add an import line — remove the backticks, which is what keeps the line below inert:
+
+`@{{VAULT}}/AIOS/me-{{SCOPE}}.md`
+
+Imports resolve relative to this file, accept `~/` and absolute paths, and nest up to 4 levels. A `@path` inside backticks or a fenced code block is **not** an import — that's how this example stays an example.
+
+---
+
+Local-only and git-ignored: teammates never see this file. Claude Code loads `CLAUDE.md` first, then `CLAUDE.local.md`, concatenating both — it does not replace the shared instructions.

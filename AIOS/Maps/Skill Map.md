@@ -63,5 +63,17 @@ The mechanism that lets a coding session in *any* repo feed this vault without e
 - [[aios-log]] — capture a fact/decision into the vault (scope auto-detected from cwd). Trigger: `/aios-log`.
 - [[aios-ingest]] — compound queued session digests into the wiki (run in the vault). Trigger: `/aios-ingest`.
 
+## 🧰 Portable global skills (`skills/`, all projects)
+A different class from everything above. `skills/<name>/SKILL.md` files are symlinked into `~/.claude/skills/` by `skills/link-global.sh`, so Claude Code **auto-discovers** them in every project — no vault trigger phrase, routing is by each skill's `description`. Setup and provenance: `skills/README.md`.
+
+- `create-cli` — CLI design rubric: args, flags, output contract, exit codes. Ready now.
+- `github-deep-review` — evidence-first PR/issue review: root cause, best fix, provenance. Needs `gh`.
+- `markdown-converter` — PDF/Office/HTML/YouTube → Markdown. Needs `uvx`.
+- `one-password` — tmux-safe `op` secret read/store/inject, service-account-first. Needs `op`; set your vault/item names first.
+- `reminders` — Apple Reminders via the `rem` CLI. Needs `rem` + macOS permission.
+- `video-transcript-downloader` — yt-dlp transcript/audio/subtitle puller. Needs `yt-dlp`; `npm ci` in the skill dir.
+
+New portable skill: add `skills/<name>/SKILL.md`, run `sh skills/link-global.sh`, register the line here.
+
 ## Adding a skill
 Write `AIOS/Skills/<name>.md` per [[skill-builder]]'s schema, then register the one-line description here under its system. A skill that isn't in this map does not exist, as far as the AI is concerned.

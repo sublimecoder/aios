@@ -77,19 +77,36 @@ Do these in order. Verify each before moving on.
 
 8. **`Home.md`** — a dashboard linking the `me-*` files, the three Maps, and the Log. Keep it short; it loads into context on every session start.
 
-9. **Wire the cross-repo hooks** (skip if 1d was skipped). For each repo in `repo-layers.tsv`, add to that repo's `.claude/settings.json`:
-   - `SessionStart` → `$AIOS_VAULT/AIOS/Systems/hooks/aios-context.sh` (loads that project's accumulated brain into the session)
-   - `Stop` → `$AIOS_VAULT/AIOS/Systems/hooks/aios-digest.sh` (appends a session digest to the vault queue)
+9. **Wire the cross-repo hooks** (skip if 1d was skipped). Do **not** hand-edit JSON — run the installer once per repo:
 
-   Both scripts write **only** to the vault, never to the invoking repo. Tell the user to set `AIOS_VAULT` in their shell rc if the vault isn't at `~/code/aios`.
+   ```bash
+   scripts/aios-wire-repo.sh <repo-path> <scope> [project-slug]
+   ```
+
+   It adds the manifest row (real tabs) and merges the `SessionStart` → `aios-context.sh` and `Stop` → `aios-digest.sh` hooks into that repo's `.claude/settings.json`, preserving anything already there. Idempotent. It refuses an unknown scope, a non-git directory, and a conflicting remap.
+
+   Both hooks write **only** to the vault, never to the invoking repo. Tell the user to set `AIOS_VAULT` in their shell rc if the vault isn't at `~/code/aios`.
+
+   Note step 7 already wrote `repo-layers.tsv` rows by hand — running the installer afterward is still correct, it detects the existing row and only wires the settings. If you'd rather, skip step 7 and let the installer write both.
+
+10. **Schedule the nightly ingest**, so the queue drains and the vault compounds without anyone remembering to run it:
+
+   ```bash
+   scripts/aios-install-nightly.sh          # 03:00 local; launchd on macOS, cron elsewhere
+   scripts/aios-install-nightly.sh --status
+   ```
+
+   Ask before installing — it writes a LaunchAgent or a crontab line. If the user already runs a nightly ingest for a *different* vault on this machine, the installer refuses: the schedule name is global and installing would silently disable that one. Do not pass `AIOS_FORCE=1` on the user's behalf.
 
 ## Phase 3 — Verify
 
 Run these. Do not report success until they pass. Paste the actual output.
 
 ```bash
-# 1. The write guard works.
+# 1. The guard and the installers work.
 bash .claude/hooks/test_vault_write_guard.sh
+bash scripts/test_aios_wire_repo.sh
+bash scripts/test_aios_install_nightly.sh
 
 # 2. No placeholders survive.
 grep -rn '<!-- BOOTSTRAP' . --exclude-dir=.git ; \
@@ -110,7 +127,16 @@ awk -F'\t' '!/^#/ && NF>=3 {print $3}' AIOS/Systems/layers.tsv | tr '|' '\n' | s
 grep -nE '^(main|professional|pen|work)\b' AIOS/Systems/layers.tsv
 ```
 
-Checks 2, 3, 4 must print nothing. Check 5 must print only the user's real scopes. Check 1 must end `N passed, 0 failed`.
+Checks 2, 3, 4 must print nothing. Check 5 must print only the user's real scopes. Check 1 must end `N passed, 0 failed` for all three suites.
+
+If repos were wired, also confirm each resolves:
+
+```bash
+awk -F'\t' '!/^#/ && NF>=3 {print $1}' AIOS/Systems/repo-layers.tsv | while read -r r; do
+  scripts/aios-wire-repo.sh --check "$HOME/code/$r" 2>/dev/null | grep -q MISSING \
+    && echo "UNWIRED: $r"
+done
+```
 
 Then, if and only if the wall is on, dispatch the `layer-leak-auditor` subagent on `CLAUDE.md` and each `me-*.md` and paste its verdict.
 
@@ -125,11 +151,14 @@ Do **not** push. Do not create a remote. Tell the user:
 > If any scope is private, keep this repo private. Git history is forever — a commit that exposed something can't be un-shared by a later fix.
 
 Then give them a five-line "what now":
-- `/aios-log <fact>` from any wired repo — captures a decision into the vault.
-- `/aios-ingest` from the vault — compounds queued session digests into project notes.
+- `/aios-log <fact>` from any wired repo — captures a decision into the vault immediately.
+- `/aios-ingest` from the vault — compounds queued session digests into project notes. The nightly job does this for you.
 - `/wiki-lint` — periodic health check.
+- `scripts/aios-wire-repo.sh <repo> <scope>` — connect another repo later.
 - Drop a source file into `Sources/<scope>/` and ask the AI to ingest it.
 - Ask a question and watch it read `Knowledge Map` first.
+
+Full wiring reference: `docs/install.md`.
 
 ---
 
@@ -145,5 +174,7 @@ Then give them a five-line "what now":
 | `AIOS/Systems/hooks/` | The cross-repo wire: sessions in other repos feed this vault, never the reverse. |
 | `.claude/agents/` | Subagents that keep read-heavy work out of your main context. |
 | `.claude/hooks/vault-write-guard.sh` | Mechanically enforces: `Sources/` immutable, no AI-authored `Atlas/` notes, and (optionally) the scope wall. |
+| `scripts/aios-wire-repo.sh` | Connects a code repo to the vault, idempotently. |
+| `scripts/aios-install-nightly.sh` | Schedules the nightly ingest so the vault compounds unattended. |
 
 The design bet: **a hand-curated `Knowledge Map` read first beats vector search** until you're well into the hundreds of notes. Embeddings are the last resort, not the default.

@@ -50,21 +50,36 @@ If you'd rather see what it's going to ask before you commit to anything, read [
 | `AIOS/Systems/hooks/` | The cross-repo wire (below). |
 | `.claude/agents/` | Subagents that keep read-heavy work out of your main context. |
 | `.claude/hooks/vault-write-guard.sh` | Mechanically enforces the vault's invariants. |
+| `scripts/aios-wire-repo.sh` | Connects a code repo to the vault. Idempotent; the only thing here that writes to a repo. |
+| `scripts/aios-install-nightly.sh` | Schedules the nightly ingest (launchd / cron). Fails closed if another vault holds the schedule. |
 
 ## The cross-repo wire
 
-The part that makes it compound.
+The part that makes it compound. Full detail: [`docs/install.md`](docs/install.md).
 
-Register a code repo in `AIOS/Systems/repo-layers.tsv`, then add two hooks to *that repo's* `.claude/settings.json`:
+```bash
+scripts/aios-wire-repo.sh ~/code/acme-api work    # one command per repo
+scripts/aios-install-nightly.sh                   # drain the queue at 03:00
+```
+
+Wiring a repo adds a row to `AIOS/Systems/repo-layers.tsv` and merges two hooks into *that repo's* `.claude/settings.json`:
 
 - **SessionStart** → `aios-context.sh` loads that project's accumulated brain into the session, so the agent starts knowing what it learned last time.
 - **Stop** → `aios-digest.sh` appends a signal-only digest (branch, commits, diff-stat, any native memory that changed) to a queue in the vault.
 
-Both scripts write **only to the vault**, never to the invoking repo. A repo that isn't in the manifest is a silent no-op — the scope is never guessed.
+Both hooks write **only to the vault**, never to the invoking repo. A repo that isn't in the manifest is a silent no-op — the scope is never guessed.
 
-Later, from the vault, `/aios-ingest` compounds the queue into `AIOS/Projects/<scope>/<project>.md` and updates the `Knowledge Map`. Fan it out one subagent per digest and it stays cheap.
+Nightly, `/aios-ingest` compounds the queue into `AIOS/Projects/<scope>/<project>.md` and updates the `Knowledge Map`, fanning out one subagent per digest. Mid-session, `/aios-log <fact>` captures a decision immediately.
 
 The loop: **code → digest → ingest → brain → next session's context.**
+
+Verify any of it:
+
+```bash
+scripts/aios-wire-repo.sh --check ~/code/acme-api
+scripts/aios-install-nightly.sh --status
+scripts/aios-install-nightly.sh --dry-run
+```
 
 ## Scopes, and the optional wall
 
@@ -81,8 +96,14 @@ For them, `layers.tsv` has a `tokens` column. Fill it in and two mechanisms come
 
 Leave `tokens` as `-` (the default) and both stay inert. The guard's other two rules — `Sources/` is immutable, the AI never authors new `Atlas/` notes — apply either way.
 
+## Verify
+
+Every moving part has a self-check. None of them touch your real vault, LaunchAgents, or crontab.
+
 ```bash
 bash .claude/hooks/test_vault_write_guard.sh   # 21 passed, 0 failed
+bash scripts/test_aios_wire_repo.sh            # 14 passed, 0 failed
+bash scripts/test_aios_install_nightly.sh      # 15 passed, 0 failed
 ```
 
 ## Folder framework
@@ -109,7 +130,6 @@ x/         Templates, attachments, old design docs
 
 ## Optional extensions we use but don't ship
 
-- **Nightly ingest** — `AIOS/Systems/hooks/aios-nightly-ingest.sh` runs `/aios-ingest` headless under launchd with a scoped tool allowlist. Wire it to a `launchd` plist if you want the queue drained while you sleep.
 - **Structural graph cross-check** — running a knowledge-graph extractor over the vault and reading its "surprising connections" report alongside `wiki-lint` catches links a hand-curated map missed. Not shipped: it needs an external extractor and per-vault tuning.
 
 ## License

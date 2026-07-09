@@ -29,5 +29,6 @@ When models rename, update this table only — the doctrine above doesn't change
 - **layer-leak-auditor** — checks a note/file/diff for cross-layer identity leaks before any external action. Read-only.
 - **ingest-worker** — processes ONE queued session digest per [[aios-ingest]] step 1; writes only its own project note, returns the KM + Log lines. Fan out one worker per digest; orchestrator applies shared writes, runs the leak gate, archives, commits.
 - **wiki-query** — read-only wiki researcher for one layer: Knowledge Map → wikilink traversal → cited answer. Orchestrator files the answer as a note if it's worth keeping.
+- **graphify-scout** — cheap codebase-recon scout: queries the graphify knowledge graph (`graphify-out/`) first, verifies every hit with grep, returns a compact `file:line` map. Dispatch it (visibly) before Explore/grep for "where does X live / how does Y flow" questions.
 
 Add a new agent only when a job measurably bloats the main session; register it here and in [[Skill Map]].

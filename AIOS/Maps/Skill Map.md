@@ -57,6 +57,7 @@ Doctrine + model routing live in [[Orchestrator]]. These are **agents**, not ski
 - `layer-leak-auditor` — cross-scope leak check before any external action (read-only). Only useful if you enabled the optional wall in `layers.tsv`.
 - `ingest-worker` — one queued digest → its project note; fan out during [[aios-ingest]].
 - `wiki-query` — cited answer from one scope's wiki (read-only Query op).
+- `graphify-scout` — graph-first codebase recon: `graphify-out/` query, grep-verified `file:line` map. Dispatch before Explore/grep for "where does X live" questions.
 
 ### 🔌 AIOS Wire — cross-repo knowledge sync
 The mechanism that lets a coding session in *any* repo feed this vault without ever writing to that repo. See `AIOS/Systems/hooks/`.

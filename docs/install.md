@@ -209,7 +209,7 @@ Nothing here requires the scheduler. From the vault:
 ```bash
 # 1. Vault invariants hold.
 bash .claude/hooks/test_vault_write_guard.sh      # 21 passed, 0 failed
-bash scripts/test_aios_wire_repo.sh               # 14 passed, 0 failed
+bash scripts/test_aios_wire_repo.sh               # 25 passed, 0 failed
 bash scripts/test_aios_install_nightly.sh         # 15 passed, 0 failed
 
 # 2. A wired repo resolves.

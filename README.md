@@ -21,7 +21,7 @@ A curated map read first beats vector search well into the hundreds of notes. Em
 ## Quickstart
 
 ```bash
-git clone <this-repo> ~/code/aios && cd ~/code/aios
+git clone https://github.com/sublimecoder/aios ~/code/aios && cd ~/code/aios
 rm -rf .git && git init          # start your own history; this vault will hold private things
 claude
 ```

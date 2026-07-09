@@ -1,0 +1,61 @@
+# AIOS scopes (a.k.a. "layers") — how this vault partitions knowledge.
+#
+# A scope is a bucket of context: a job, a side project, a client, a life area.
+# Its purpose is ROUTING. It keeps one project's accumulated memory from bleeding
+# into an unrelated one, and tells the AI which "me" file to read for a task.
+#
+# ONE SCOPE IS A COMPLETELY NORMAL SETUP. The default below is exactly that.
+# Add rows only when you actually have contexts that shouldn't share memory.
+#
+# Tab-separated. Lines starting with # are ignored.
+#
+# Columns:
+#   1. layer          Short slug. Must match AIOS/me-<layer>.md and Sources/<layer>/.
+#   2. label          Human-readable name, used in messages.
+#   3. content-globs  Pipe-separated shell globs of folders holding this scope's
+#                     content. Scaffolding (AIOS/, Calendar/, x/) is excluded by
+#                     design — it describes every scope.
+#   4. tokens         OPTIONAL. "-" disables the wall for this scope (the default).
+#                     See "Strict separation" below before filling this in.
+#   5. allow-from     OPTIONAL. Pipe-separated scopes tolerated inside this one.
+#                     "-" means strict. Only meaningful when tokens are set.
+#
+# ---------------------------------------------------------------------------
+# DEFAULT: one scope, no wall. Most people want this.
+# ---------------------------------------------------------------------------
+# layer	label	content-globs	tokens	allow-from
+main	Main	Atlas/*|Efforts/*|Sources/main/*	-	-
+
+# ---------------------------------------------------------------------------
+# MULTIPLE SCOPES (still no wall) — routing only. Common and useful:
+# work project memory stays out of personal project memory.
+#
+# work	Work	Efforts/Work/*|Sources/work/*	-	-
+# personal	Personal	Atlas/Personal/*|Efforts/Personal/*|Sources/personal/*	-	-
+#
+# ---------------------------------------------------------------------------
+# STRICT SEPARATION (the wall) — OPT-IN. You probably do not need this.
+#
+# Turn it on only if two scopes must never appear in the same file, and a
+# mistake would be materially harmful rather than merely untidy. Real cases:
+#   - A pen name or stage name that must never be linked to a legal name.
+#   - Employer-proprietary work that must never reach a public portfolio,
+#     a résumé, a blog post, or a job application.
+#   - Client A's internals that must never surface in Client B's repo.
+#
+# To enable, fill column 4 with a case-insensitive regex of the strings that
+# IDENTIFY that scope — names, brands, domains, codenames. The write-time guard
+# (.claude/hooks/vault-write-guard.sh) then blocks any scope's tokens from
+# landing in another scope's content folders, and the `layer-leak-auditor`
+# subagent catches the inferred crossings a grep cannot.
+#
+# The wall is symmetric by default. Column 5 makes it one-way: `work` below
+# tolerates `professional` (same legal person) but `professional` still refuses
+# every `work` token, so employer detail can never reach the public brand.
+#
+# professional	Professional / public	Atlas/Professional/*|Efforts/Projects/*|Sources/professional/*	realname|myblog\.com	-
+# pen	Pen name	Atlas/Pen/*|Efforts/Writing/*|Sources/pen/*	penname|pen\.example	-
+# work	Work / employer	Efforts/Work/*|Sources/work/*	acmecorp|projectfoxtrot	professional
+#
+# Leaving column 4 as "-" keeps the guard inert for that scope. Nothing else
+# in the vault changes. Turn it on later by editing this one file.

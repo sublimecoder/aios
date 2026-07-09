@@ -1,0 +1,14 @@
+# Repo → layer/project manifest. Tab-separated. Comments and short rows ignored.
+#
+# Read by AIOS/Systems/hooks/lib.sh (aios_lookup). Maps a code repo's DIRECTORY
+# NAME to the identity layer it belongs to and the project slug its knowledge
+# accumulates under (AIOS/Projects/<layer>/<project>.md).
+#
+# The layer is NEVER guessed. A repo that isn't listed here is a silent no-op:
+# the SessionStart hook loads no context and the Stop hook writes no digest.
+# That is the safe default — add a row deliberately.
+#
+# Column 1 must match `basename` of the repo checkout, not its remote name.
+# Column 2 must match a layer slug in AIOS/Systems/layers.tsv.
+#
+# repo-dir	layer	project-slug

@@ -4,17 +4,27 @@
 # Its purpose is ROUTING. It keeps one project's accumulated memory from bleeding
 # into an unrelated one, and tells the AI which "me" file to read for a task.
 #
+# THE SCOPE IS THE FILESYSTEM. Each scope is one top-level directory named by
+# its slug, with a fixed inner shape:
+#   <slug>/me.md        who you are in this context (read first for any task here)
+#   <slug>/notes/       your hand-written timeless notes (AI proposes, never creates)
+#   <slug>/content/     drafts and works-in-progress
+#   <slug>/projects/    AI-maintained project brains (written by aios-ingest)
+#   <slug>/sources/     immutable curated inputs (read-only, guard-enforced)
+# A path's first segment tells you its scope — that prefix is what the write
+# guard, ingest, and leak audits key on. AIOS/, archive/, and +/ are neutral
+# scaffolding shared by every scope.
+#
 # ONE SCOPE IS A COMPLETELY NORMAL SETUP. The default below is exactly that.
 # Add rows only when you actually have contexts that shouldn't share memory.
 #
 # Tab-separated. Lines starting with # are ignored.
 #
 # Columns:
-#   1. layer          Short slug. Must match AIOS/me-<layer>.md and Sources/<layer>/.
+#   1. layer          Short slug. Must match the top-level directory `<layer>/`.
 #   2. label          Human-readable name, used in messages.
 #   3. content-globs  Pipe-separated shell globs of folders holding this scope's
-#                     content. Scaffolding (AIOS/, Calendar/, x/) is excluded by
-#                     design — it describes every scope.
+#                     content. With the scope-first tree this is just `<layer>/*`.
 #   4. tokens         OPTIONAL. "-" disables the wall for this scope (the default).
 #                     See "Strict separation" below before filling this in.
 #   5. allow-from     OPTIONAL. Pipe-separated scopes tolerated inside this one.
@@ -24,14 +34,14 @@
 # DEFAULT: one scope, no wall. Most people want this.
 # ---------------------------------------------------------------------------
 # layer	label	content-globs	tokens	allow-from
-main	Main	Atlas/*|Efforts/*|Sources/main/*	-	-
+main	Main	main/*	-	-
 
 # ---------------------------------------------------------------------------
 # MULTIPLE SCOPES (still no wall) — routing only. Common and useful:
 # work project memory stays out of personal project memory.
 #
-# work	Work	Efforts/Work/*|Sources/work/*	-	-
-# personal	Personal	Atlas/Personal/*|Efforts/Personal/*|Sources/personal/*	-	-
+# work	Work	work/*	-	-
+# personal	Personal	personal/*	-	-
 #
 # ---------------------------------------------------------------------------
 # STRICT SEPARATION (the wall) — OPT-IN. You probably do not need this.
@@ -46,16 +56,16 @@ main	Main	Atlas/*|Efforts/*|Sources/main/*	-	-
 # To enable, fill column 4 with a case-insensitive regex of the strings that
 # IDENTIFY that scope — names, brands, domains, codenames. The write-time guard
 # (.claude/hooks/vault-write-guard.sh) then blocks any scope's tokens from
-# landing in another scope's content folders, and the `layer-leak-auditor`
-# subagent catches the inferred crossings a grep cannot.
+# landing in another scope's directory, and the `layer-leak-auditor` subagent
+# catches the inferred crossings a grep cannot.
 #
 # The wall is symmetric by default. Column 5 makes it one-way: `work` below
 # tolerates `professional` (same legal person) but `professional` still refuses
 # every `work` token, so employer detail can never reach the public brand.
 #
-# professional	Professional / public	Atlas/Professional/*|Efforts/Projects/*|Sources/professional/*	realname|myblog\.com	-
-# pen	Pen name	Atlas/Pen/*|Efforts/Writing/*|Sources/pen/*	penname|pen\.example	-
-# work	Work / employer	Efforts/Work/*|Sources/work/*	acmecorp|projectfoxtrot	professional
+# professional	Professional / public	professional/*	realname|myblog\.com	-
+# pen	Pen name	pen/*	penname|pen\.example	-
+# work	Work / employer	work/*	acmecorp|projectfoxtrot	professional
 #
 # Leaving column 4 as "-" keeps the guard inert for that scope. Nothing else
 # in the vault changes. Turn it on later by editing this one file.

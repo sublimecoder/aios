@@ -6,6 +6,6 @@ related: ["[[Skill Map]]"]
 
 **Purpose:** manage the day — one shared working doc plus an automatic log of what changed.
 
-**Skills:** [[daily-brief]] · [[daily-log]]
+**Skills:** [[daily-brief]] (two modes — absorbed the former daily-log)
 
-**Use when:** starting the day (daily-brief) or closing it out (daily-log). Output lands in `Calendar/Days/`.
+**Use when:** starting the day (morning mode) or closing it out (log mode) — both via [[daily-brief]]. On-demand; [[Log]] is the primary time-based record. Output lands in `Calendar/Days/`.

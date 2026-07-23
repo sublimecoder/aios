@@ -32,11 +32,44 @@ count_queue() {
     | grep -v '/.state/' | grep -v '/.memory/' | wc -l | tr -d ' '
 }
 
+# Heartbeat: unambiguous "the job fired" marker, written before any branch below.
+# The dated log line proves it ran even if it dies mid-run; the .lastrun file is
+# stat-able for a quick "when did it last fire" check.
+echo "$(TS) heartbeat — invoked" >> "$LOG"
+touch "$LOG_DIR/aios-nightly.lastrun" 2>/dev/null
+
 Q=$(count_queue)
 if [ "$Q" -eq 0 ]; then
   echo "$(TS) queue empty, skipping" >> "$LOG"
   exit 0
 fi
+
+# The scheduler may fire this several times a day, and it can't see a human
+# session already running /aios-ingest — two agents rewriting the same project
+# note and racing a commit is how the queue gets double-counted. macOS has no
+# flock → atomic mkdir lock, same pattern as aios-digest.sh. No wait loop: if an
+# ingest is already in flight, this fire has nothing to add — the next one picks
+# it up.
+LOCK="$VAULT/.aios-ingest.lock"
+# Reap a stale lock: a SIGKILL/reboot mid-run strands the mkdir lock (the EXIT
+# trap never fires) and every later fire silently skips. The ingest is capped at
+# timeout 3600, so a lock older than 3600+600s cannot belong to a live run.
+if [ -d "$LOCK" ]; then
+  MTIME=$(stat -f %m "$LOCK" 2>/dev/null || stat -c %Y "$LOCK" 2>/dev/null || date +%s)
+  AGE=$(( $(date +%s) - MTIME ))
+  if [ "$AGE" -gt 4200 ]; then
+    echo "$(TS) reaping stale lock (age ${AGE}s)" >> "$LOG"
+    rmdir "$LOCK" 2>/dev/null
+  fi
+fi
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "$(TS) another ingest in flight (lock held), skipping" >> "$LOG"
+  exit 0
+fi
+# ponytail: trap covers the timeout kill + normal exit; a hard SIGKILL (or a
+# reboot mid-run) strands the lock — the stale-lock reaper above clears it on
+# the next fire once it ages past 4200s.
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
 
 echo "$(TS) ingesting $Q digest(s)" >> "$LOG"
 # Scoped tool allowlist instead of --dangerously-skip-permissions: an unattended

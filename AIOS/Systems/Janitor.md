@@ -6,6 +6,6 @@ related: ["[[Skill Map]]"]
 
 **Purpose:** maintain the vault and the assistant — propagate changes and fix drift.
 
-**Skills:** [[cascade]] · [[harmonize]] · [[navigation-janitor]] · [[creation-janitor]] · [[skills-janitor]] · [[wiki-lint]]
+**Skills:** [[propagate]] · [[vault-map]] · [[skills-janitor]] · [[wiki-lint]] · [[log-rollup]] · [[km-rotate]] · [[open-flags]]
 
-**Use when:** renaming something (cascade), changing a convention (harmonize), auditing that the Vault Map and skills still match reality (the -janitor skills), or health-checking the knowledge wiki (wiki-lint).
+**Use when:** renaming something or changing a convention (propagate), keeping the Vault Map true (vault-map audit mode), auditing skills (skills-janitor), or health-checking the wiki layer (wiki-lint, log-rollup, km-rotate, open-flags).

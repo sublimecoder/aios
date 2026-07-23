@@ -6,6 +6,6 @@ related: ["[[Skill Map]]"]
 
 **Purpose:** save conversations into the vault — verbatim, summarized, or appended.
 
-**Skills:** [[verbatim]] · [[summarizer]] · [[quick-append]]
+**Skills:** [[chronicle]]
 
-**Use when:** an AI conversation is worth keeping. verbatim = word-for-word, summarizer = fixed structure, quick-append = drop a chunk into today's daily note.
+**Use when:** an AI conversation is worth keeping. One skill, three modes ([[chronicle]]): verbatim = word-for-word, summary = fixed structure, append = drop a chunk into today's daily note.

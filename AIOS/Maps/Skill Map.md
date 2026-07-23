@@ -13,13 +13,11 @@ When a message matches a trigger, open the matching note in `AIOS/Skills/`, foll
 
 ### 🛠️ AI OS Autobuilder — build & maintain your AI assistant → [[AI OS Autobuilder]]
 - [[me-builder]] — interviews you and builds/updates your `me-<scope>` files.
-- [[navigation-builder]] — builds the 1st half of the [[Vault Map]] (how AI navigates).
-- [[creation-builder]] — builds the 2nd half of the [[Vault Map]] (how AI creates notes, templates, defaults).
-- [[skill-builder]] — the format AI uses to create new skills and register them here.
+- [[vault-map]] (build mode) — writes/refreshes both halves of the [[Vault Map]] (navigation + creation rules).
+- [[skill-builder]] — the playbook for creating a skill that behaves the same way every run (format choice, invocation mode, completion criteria, leading word, six failure modes) and registering it here.
 
 ### 🔱 Daily Trident — manage the day → [[Daily Trident]]
-- [[daily-brief]] — pulls recent notes, active pipeline, focus into one working doc in `Calendar/Days/`.
-- [[daily-log]] — scans the day's changes and writes timestamped entries to today's log.
+- [[daily-brief]] — one skill, two modes, one file (`Calendar/Days/<date>.md`): morning mode = the day's brief (tasks/pipeline scan), evening mode = the day's log (what happened). Trigger aliases: "morning brief" / "daily brief" / "daily log" / "log my day". (Absorbed the former daily-log skill.)
 
 ### 🧭 Sherpa — map out a topic → [[Sherpa]]
 - [[sherpa]] — asks universal questions about a topic, builds a starter MOC in your voice.
@@ -34,16 +32,15 @@ When a message matches a trigger, open the matching note in `AIOS/Skills/`, foll
 - [[style-guide-writing-me]] — your lightweight personal style guide.
 
 ### 🪶 Chronicler — save conversations → [[Chronicler]]
-- [[verbatim]] — save an AI conversation word-for-word to a note.
-- [[summarizer]] — summarize a convo/meeting/transcript into a fixed structure.
-- [[quick-append]] — append a chunk of an AI conversation to a note (defaults to today's daily note).
+- [[chronicle]] — save conversation content to a note, three modes: verbatim (word-for-word), summary (fixed structure), append (chunk into today's daily note). (Merged verbatim + summarizer + quick-append.)
 
 ### 🧹 Janitor — maintain notes & assistant → [[Janitor]]
-- [[cascade]] — propagate a name change across body, frontmatter, paths, scheduled tasks.
-- [[harmonize]] — propagate a convention change across notes that share conventions.
-- [[navigation-janitor]] — audits the 1st half of the Vault Map for alignment.
-- [[creation-janitor]] — audits the 2nd half of the Vault Map for alignment.
-- [[skills-janitor]] — audits skill files against the skill-builder schema, fixes drift.
+- [[propagate]] — sweep one change across every note that carries it: a rename or a convention. (Merged cascade + harmonize.)
+- [[vault-map]] (audit mode) — compares both halves of the Vault Map to reality, proposes fixes. (Merged the -builder and -janitor vault-map skills.)
+- [[skills-janitor]] — audits skills against [[skill-builder]] (schema + six failure modes + invocation cost via `AIOS/Systems/classify-skill.sh`); proposes, never rewrites.
+- [[log-rollup]] — rotates months older than the current one out of [[Log]] into `Log-YYYY-MM.md` archives; entry text immutable, count verified.
+- [[km-rotate]] — shrinks ballooned [[Knowledge Map]] lines back to one-line summaries, moving dated activity clauses into the notes; never drops a fact.
+- [[open-flags]] — registers every ⚠️/OPEN marker in project notes, forces a disposition during ingest, escalates flags older than 30 days.
 - [[wiki-lint]] — health-checks the knowledge wiki (schema → staleness → gaps → drift → orphans → dupes → contradictions), emits a 🟢/🟡/🔴 report, proposes fixes only. Trigger: "lint the wiki". Also `/wiki-lint`; isolated run via the `wiki-lint-runner` subagent.
 
 ### 📦 Courier — share notes between vaults & people → [[Courier]]
@@ -58,6 +55,7 @@ Doctrine + model routing live in [[Orchestrator]]. These are **agents**, not ski
 - `ingest-worker` — one queued digest → its project note; fan out during [[aios-ingest]].
 - `wiki-query` — cited answer from one scope's wiki (read-only Query op).
 - `graphify-scout` — graph-first codebase recon: `graphify-out/` query, grep-verified `file:line` map. Dispatch before Explore/grep for "where does X live" questions.
+- `publish-verify` — post-publish check of a live URL/repo push: cross-scope token grep + first-person claim trace (unsourced = fabrication-risk). Read-only.
 
 ### 🔌 AIOS Wire — cross-repo knowledge sync
 The mechanism that lets a coding session in *any* repo feed this vault without ever writing to that repo. See `AIOS/Systems/hooks/`.

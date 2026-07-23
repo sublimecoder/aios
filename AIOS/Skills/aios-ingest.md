@@ -22,6 +22,10 @@ Compound the queued session digests into the wiki. **Run only in the vault.**
   digest implies nothing durable, skip it — do not invent.
 - **Sources stay immutable.** Write only to `AIOS/Projects/`, `AIOS/History/Log.md`,
   and `Knowledge Map`. Never edit `Sources/` or create new `Atlas/` notes.
+- **Dates:** all vault dates derive from local `date +%F`, never from digest UTC
+  stamps (late in the local day they disagree).
+- **Dedupe:** collapse byte-identical digest blocks before synthesis (defense in
+  depth; the hook dedupes at write time).
 
 ## Steps
 For each layer with a non-empty queue (when the queue is large, fan step 1 out — one `ingest-worker` subagent per digest, per [[Orchestrator]]; workers write only their own project note and hand back the KM + Log lines for steps 1c–d):
@@ -34,12 +38,18 @@ For each layer with a non-empty queue (when the queue is large, fan step 1 out �
       note (idempotent merge — they're the source of truth; don't duplicate what's
       already captured, and drop note content a retracted mirror file contradicts).
    c. Add/refresh the note's entry in `[[Knowledge Map]]` (correct layer segment).
-   d. Append one `layer/project`-tagged line to `AIOS/History/Log.md` (newest top).
+   d. **Draft** one `layer/project`-tagged line for `AIOS/History/Log.md` (newest
+      top) — content only, NO gate or lint verdicts yet: those exist only after
+      steps 2 and 4 actually run (a pre-written "🟢" is a fabricated verdict).
+   e. **Open flags:** run [[open-flags]] scoped to the ingested project — every
+      ⚠️/OPEN marker in its note(s) gets confirmed-still-open or resolved this
+      ingest; never silently dropped.
 2. **Gate:** dispatch the `layer-leak-auditor` subagent on each touched note. If it
    flags a crossing, fix or revert that note before committing.
 3. **Archive** consumed digests: move each processed `+/_sessions/<layer>/<project>.md`
    to `AIOS/History/_ingested/<layer>/<project>-<date>.md` so re-ingest never
    double-counts. Recreate the empty queue dir.
 4. **Lint:** read and follow `AIOS/Skills/wiki-lint.md`, scoped to the touched notes' neighborhood.
-5. Commit + push the vault (Co-Authored-By trailer). Report per layer: projects
-   touched, notes updated, anything the auditor flagged.
+5. Finalize the Log line with the **real** gate (step 2) + lint (step 4) verdicts —
+   never pre-write them. Then commit + push the vault (Co-Authored-By trailer).
+   Report per layer: projects touched, notes updated, anything the auditor flagged.

@@ -27,6 +27,7 @@ When models rename, update this table only — the doctrine above doesn't change
 ## Agent roster (adapters in `.claude/agents/`)
 - **wiki-lint-runner** — isolated wiki health-check; follows [[wiki-lint]]. Read-only.
 - **layer-leak-auditor** — checks a note/file/diff for cross-layer identity leaks before any external action. Read-only.
+- **publish-verify** — post-publish verifier: fetches the live artifact, greps the OTHER scopes' tokens against it, traces every first-person claim to the vault's confirmed-history notes (unsourced = fabrication-risk). Dispatch after any external publish (read-only).
 - **ingest-worker** — processes ONE queued session digest per [[aios-ingest]] step 1; writes only its own project note, returns the KM + Log lines. Fan out one worker per digest; orchestrator applies shared writes, runs the leak gate, archives, commits.
 - **wiki-query** — read-only wiki researcher for one layer: Knowledge Map → wikilink traversal → cited answer. Orchestrator files the answer as a note if it's worth keeping.
 - **graphify-scout** — cheap codebase-recon scout: queries the graphify knowledge graph (`graphify-out/`) first, verifies every hit with grep, returns a compact `file:line` map. Dispatch it (visibly) before Explore/grep for "where does X live / how does Y flow" questions.

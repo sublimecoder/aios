@@ -18,6 +18,8 @@ trigger: "lint the wiki" / "wiki lint"
 8. Emit the report: one 🟢/🟡/🔴 line per check above, then a numbered list of proposed fixes. Apply only on my confirmation, and only via the ingest path — this skill never edits content pages itself.
 9. Log a dated line in [[Log]] using the standard bullet format: `- **YYYY-MM-DD** — **lint** — <scope> + stoplight summary` (newest at top, same as every other entry).
 
+**Scoped run (the common case):** when invoked from an ingest ([[aios-ingest]] step 4), the inputs are the ingest's touched notes. Run the same dimensions above over just that neighborhood — the touched notes, their [[Knowledge Map]] lines, and the new [[Log]] entries — and emit the same 🟢/🟡/🔴 report, marked **"scoped"**. A full-vault sweep is the periodic exception, not the default.
+
 **Constraints:** read-only on `Sources/` (immutable) and on every content page. Never delete a file. Lint one scope at a time unless I ask for every scope in `AIOS/Systems/layers.tsv` — a synthesis that spans scopes is the thing this vault exists to avoid.
 
 **Dependencies:** [[Knowledge Map]], [[Log]], [[skill-builder]] (frontmatter schema), [[_Sources]]. **Output:** stoplight audit report + proposed fixes (no auto-apply).

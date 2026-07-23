@@ -43,6 +43,41 @@ CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"
 AFTER=$(wc -l < "$Q")
 [ "$BEFORE" = "$AFTER" ] || fail "no-op session wrote a digest"
 
+# 3b. no-op floor, dirty edition: a repo carrying a long-lived uncommitted file
+# is dirty every session. An unchanged dirty tree at an unchanged HEAD is not
+# news — it must NOT append a block each time. Regression guard: this once
+# shipped 30 identical blocks into one queue.
+printf 'one\n' > "$REPO/lessons.md"
+git -C "$REPO" add lessons.md; git -C "$REPO" commit -qm "track lessons"  # tracked, like the real one
+printf 'one\ntwo\n' > "$REPO/lessons.md"                                  # long-lived uncommitted edit
+CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"   # 1st sight of it → digests
+BEFORE=$(wc -l < "$Q")
+CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"
+CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"
+[ "$(wc -l < "$Q")" = "$BEFORE" ] || fail "unchanged dirty tree re-digested (the identical-blocks bug)"
+
+# 3c. the duplicate that survived 3b: an edit that changes CONTENT but leaves the
+# diffstat identical (ticking an item off a todo list — same line count) must NOT
+# fire, because the block it would emit is byte-identical to the last one.
+printf 'one\nTWO\n' > "$REPO/lessons.md"   # same 1-line diffstat, different bytes
+CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"
+[ "$(wc -l < "$Q")" = "$BEFORE" ] || fail "content-only edit re-digested an identical block (the duplicate-diffstat bug)"
+# but an edit that MOVES the diffstat is real news and must still fire
+printf 'one\nTWO\nthree\nfour\n' > "$REPO/lessons.md"
+CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"
+[ "$(wc -l < "$Q")" -gt "$BEFORE" ] || fail "a changed diffstat did not fire a digest"
+
+# 3d. no block may be emitted with nothing in it — untracked-only churn never
+# reaches `diff --stat`, so a block fired for it would carry no word of the file.
+git -C "$REPO" checkout -- lessons.md; git -C "$REPO" checkout -- a.txt
+CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"   # settle the state
+BEFORE=$(wc -l < "$Q")
+echo scratch > "$REPO/untracked.tmp"
+CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"
+[ "$(wc -l < "$Q")" = "$BEFORE" ] || fail "untracked-only churn emitted an empty block"
+rm "$REPO/untracked.tmp"
+echo more >> "$REPO/a.txt"   # restore the dirty tree the later tests assume
+
 # 4. fail-closed: repo not in manifest → exit 0, nothing written
 OTHER="$TMP/unknown"; mkdir -p "$OTHER"; git -C "$OTHER" init -q
 CLAUDE_PROJECT_DIR="$OTHER" sh "$HOOKS/aios-digest.sh" || fail "non-manifest repo errored"
@@ -95,5 +130,19 @@ grep -q "memory: .*fact.md" "$MQ" || fail "digest missing memory: line"
 rm "$MSRC/fact.md"
 AIOS_MEMORY_BASE="$TMP/mem" CLAUDE_PROJECT_DIR="$MEMR" sh "$HOOKS/aios-digest.sh"
 [ ! -f "$MIRROR/fact.md" ] || fail "retracted memory not removed from mirror (rsync --delete)"
+
+# 9. the digest commit takes ONLY its own paths — never the rest of the index.
+# A bare `git commit` commits the whole index, so staged human/agent work gets
+# swept into an unattended, scope-tagged commit. Regression guard.
+printf 'staged by a human\n' > "$AIOS_VAULT/UNRELATED.md"
+git -C "$AIOS_VAULT" add UNRELATED.md
+echo more >> "$REPO/a.txt"                       # make the repo dirty so a digest fires
+CLAUDE_PROJECT_DIR="$REPO" sh "$HOOKS/aios-digest.sh"
+git -C "$AIOS_VAULT" log -1 --name-only --format= | grep -q '^UNRELATED.md$' \
+  && fail "digest commit swallowed a staged file outside its own paths"
+git -C "$AIOS_VAULT" diff --cached --name-only | grep -q '^UNRELATED.md$' \
+  || fail "digest commit consumed the staged file (it must remain staged, uncommitted)"
+git -C "$AIOS_VAULT" log -1 --name-only --format= | grep -q '_sessions/creator/fakerepo.md' \
+  || fail "digest commit did not include its own digest file"
 
 echo "ALL PASS"

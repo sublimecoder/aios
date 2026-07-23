@@ -25,7 +25,7 @@ Nothing here writes to a repo except `aios-wire-repo.sh`, and it only ever touch
             │  /aios-ingest  (nightly, or by hand)
             │  synthesizes the queue into durable facts
             ▼
-   AIOS/Projects/<scope>/<project>.md  +  Knowledge Map  +  Log
+   <scope>/projects/<project>.md  +  Knowledge Map  +  Log
             │
             └──────────► next session starts here, knowing more
 ```
@@ -58,7 +58,7 @@ It does exactly three things, all idempotent:
    - `Stop` → `aios-digest.sh`
 3. **Writes `CLAUDE.local.md`** in the repo and makes sure it's git-ignored. See below.
 
-It refuses to invent a scope: the scope must already exist in `AIOS/Systems/layers.tsv`, with its `me-<scope>.md`, `Sources/<scope>/`, and `AIOS/Projects/<scope>/`. It also refuses to remap a repo that's already mapped elsewhere, because `aios_lookup` takes the **first** matching row — a second row would sit there losing silently.
+It refuses to invent a scope: the scope must already exist in `AIOS/Systems/layers.tsv`, with its `<scope>/me.md`, `<scope>/sources/`, and `<scope>/projects/`. It also refuses to remap a repo that's already mapped elsewhere, because `aios_lookup` takes the **first** matching row — a second row would sit there losing silently.
 
 An existing `settings.json` is merged, never replaced. Invalid JSON is refused rather than overwritten. An existing `CLAUDE.local.md` is never touched.
 
@@ -102,7 +102,7 @@ Claude Code loads memory files in a fixed order and **concatenates** them — en
 
 The generated file records three things:
 
-- **Which scope and project this repo maps to**, so the agent knows which `me-<scope>.md` governs it.
+- **Which scope and project this repo maps to**, so the agent knows which `<scope>/me.md` governs it.
 - **Where the brain, the identity file, and the log live** — as paths, plus an instruction not to re-read them if the hook already injected them.
 - **That the vault is written through `/aios-log`, never by hand**, and that nothing gets copied between repo and vault manually.
 
@@ -114,7 +114,7 @@ Claude Code supports `@path/to/file` imports in memory files: relative, absolute
 
 The template shows an import line but leaves it inert, in backticks. Two reasons:
 
-1. **The hook already loads that content.** Importing `me-<scope>.md` on top of it is a second copy in context, for nothing.
+1. **The hook already loads that content.** Importing `<scope>/me.md` on top of it is a second copy in context, for nothing.
 2. **The behavior of an import pointing at a missing file is not documented.** A teammate who clones the repo without the vault — or keeps it at a different path — hits an unspecified failure. Prose degrades to a dead path in a comment. An import might not.
 
 If you want the scope's rules loaded verbatim anyway, strip the backticks from that line. It's your machine.
@@ -139,7 +139,7 @@ From inside any wired repo:
 /aios-log the Postgres pool caps at 20; raising it starves pgbouncer
 ```
 
-Auto-detects scope and project from the working directory, appends a dated `scope/project`-tagged line to `AIOS/History/Log.md`, updates `me-<scope>.md` if the fact is durable, and commits the vault. **It never touches the invoking repo.**
+Auto-detects scope and project from the working directory, appends a dated `scope/project`-tagged line to `AIOS/History/Log.md`, updates `<scope>/me.md` if the fact is durable, and commits the vault. **It never touches the invoking repo.**
 
 Use it when you learn something you'd otherwise re-learn in three weeks. The nightly ingest catches what you don't.
 

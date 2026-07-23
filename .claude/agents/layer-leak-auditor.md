@@ -14,7 +14,7 @@ Read `AIOS/Systems/layers.tsv` FIRST. It gives one row per scope: slug, label, c
 
 Otherwise, read `CLAUDE.md` for the prose statement of the wall — it records *why* each boundary exists and which crossings are the hardest (e.g. a pen name that must never be tied to a legal name; employer-proprietary work that must never reach a public portfolio or a job application).
 
-For walled scopes: every note, source, and output belongs to exactly one. A file that names two is a leak unless it lives in scaffolding (`AIOS/`, `Calendar/`, `x/`) whose job is to describe the wall itself.
+For walled scopes: every note, source, and output belongs to exactly one. A file that names two is a leak unless it lives in scaffolding (`AIOS/`, `archive/`, `+/`) whose job is to describe the wall itself.
 
 ## What you check
 

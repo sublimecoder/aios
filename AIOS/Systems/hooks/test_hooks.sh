@@ -8,10 +8,10 @@ export AIOS_VAULT="$TMP/vault"
 HOOKS="$AIOS_VAULT/AIOS/Systems/hooks"
 SRC=$(CDPATH= cd "$(dirname "$0")" && pwd)
 
-mkdir -p "$HOOKS" "$AIOS_VAULT/+/_sessions" "$AIOS_VAULT/AIOS/Projects"
+mkdir -p "$HOOKS" "$AIOS_VAULT/+/_sessions" "$AIOS_VAULT/creator/projects"
 cp "$SRC/lib.sh" "$SRC/aios-digest.sh" "$SRC/aios-context.sh" "$HOOKS/"
 printf 'fakerepo\tcreator\tfakerepo\nprofrepo\tprofessional\tprofrepo\nnogit\tcreator\tnogit\nmemrepo\tprofessional\tmemrepo\n' > "$AIOS_VAULT/AIOS/Systems/repo-layers.tsv"
-printf '# me\n## Durable preferences\n- first-person always\n' > "$AIOS_VAULT/AIOS/me-creator.md"
+printf '# me\n## Durable preferences\n- first-person always\n' > "$AIOS_VAULT/creator/me.md"
 
 git -C "$AIOS_VAULT" init -q
 git -C "$AIOS_VAULT" config user.email t@t; git -C "$AIOS_VAULT" config user.name t

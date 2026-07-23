@@ -35,7 +35,7 @@ LAST_STAT_SIG=$(cat "$STATE_D" 2>/dev/null || echo "")
 
 # Mirror Claude Code's native memory (durable facts it wrote) into the vault,
 # partitioned by layer. git is the change detector; /aios-ingest compounds the
-# changed files into AIOS/Projects/$LAYER/$PROJECT.md. AIOS_MEMORY_BASE override
+# changed files into $LAYER/projects/$PROJECT.md. AIOS_MEMORY_BASE override
 # exists for the test harness; real sessions use ~/.claude/projects.
 # ponytail: rsync --delete keeps the mirror exact — a memory the user retracted
 # upstream is removed here too, so ingest never re-introduces a deleted fact.

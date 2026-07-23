@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '=== AIOS hot context (auto-loaded) ===' && echo '--- Home.md ---' && cat Home.md 2>/dev/null && echo && echo '--- Recent memory: AIOS/History/Log.md (newest first) ---' && head -25 AIOS/History/Log.md 2>/dev/null && echo && echo '--- Identity layers (AIOS/Systems/layers.tsv) ---' && grep -v '^#' AIOS/Systems/layers.tsv 2>/dev/null | awk -F'\\t' 'NF>=2 {print \"  \" $1 \" — \" $2}' && echo && echo 'Read order: pick the layer this task belongs to, read AIOS/me-<layer>.md, then AIOS/Maps/Vault Map.md + Skill Map.md. Never mix layers in one output, note, or shared file.'"
+            "command": "echo '=== AIOS hot context (auto-loaded) ===' && echo '--- Home.md ---' && cat Home.md 2>/dev/null && echo && echo '--- Recent memory: AIOS/History/Log.md (newest first) ---' && head -25 AIOS/History/Log.md 2>/dev/null && echo && echo '--- Identity layers (AIOS/Systems/layers.tsv) ---' && grep -v '^#' AIOS/Systems/layers.tsv 2>/dev/null | awk -F'\\t' 'NF>=2 {print \"  \" $1 \" — \" $2}' && echo && echo 'Read order: pick the layer this task belongs to, read <layer>/me.md, then AIOS/Maps/Vault Map.md + Skill Map.md. Never mix layers in one output, note, or shared file.'"
           },
           {
             "type": "command",

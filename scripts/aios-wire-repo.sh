@@ -89,7 +89,7 @@ git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || die "$REPO is not a git re
 
 # Scope must already exist. Never invent one — that's the whole point of the manifest.
 awk -F'\t' -v s="$SCOPE" '!/^#/ && NF>=3 && $1==s {found=1} END{exit !found}' "$LAYERS" \
-  || die "scope '$SCOPE' is not in $LAYERS. Add it there first (and create AIOS/me-$SCOPE.md, Sources/$SCOPE/, AIOS/Projects/$SCOPE/)."
+  || die "scope '$SCOPE' is not in $LAYERS. Add it there first (and create $SCOPE/me.md, $SCOPE/sources/, $SCOPE/projects/)."
 
 for h in aios-context.sh aios-digest.sh; do
   [ -x "$HOOKS/$h" ] || die "$HOOKS/$h missing or not executable (chmod +x it)"

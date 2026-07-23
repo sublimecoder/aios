@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # PreToolUse guard for Edit|Write. Enforces three CLAUDE.md contracts mechanically:
-#   A. Sources/ is immutable (read-only curated input) — block ALL writes.
-#   B. Atlas/ holds your own hand-written notes — block AI-CREATED new notes there
-#      (AI notes belong in Calendar/ or AIOS/History/).
-#   C. Cross-layer leak tripwire — block the most flagrant literal leaks at write
+#   A. <scope>/sources/ is immutable (read-only curated input) — block ALL writes.
+#   B. <scope>/notes/ holds your own hand-written notes — block AI-CREATED new
+#      notes there (AI notes belong in <scope>/projects|content/ or AIOS/History/).
+#   C. Cross-scope leak tripwire — block the most flagrant literal leaks at write
 #      time, driven entirely by AIOS/Systems/layers.tsv. This is a cheap grep, not
 #      a substitute for layer-leak-auditor's nuanced/inferred pass: it only catches
 #      unambiguous, high-signal tokens to keep false positives near zero. Scoped to
-#      layer CONTENT folders only (column 3 of layers.tsv); AIOS/, Calendar/, x/ are
-#      meta/scaffolding that legitimately name every layer by design.
+#      scope dirs only (column 3 of layers.tsv); AIOS/, archive/, +/ are
+#      meta/scaffolding that legitimately name every scope by design.
 # Blocks by exiting 2 with a message on stderr (fed back to the agent).
 # ponytail: deny-list, not allowlist — guards the named harms only, so legit
 # drafts never false-positive. Add zones if a leak shows one.
@@ -28,20 +28,20 @@ tool=$(printf '%s' "$input" | jq -r '.tool_name // empty')
 repo="${CLAUDE_PROJECT_DIR:-$PWD}"
 rel="${path#"$repo"/}"
 
-# Rule A: Sources/ is immutable.
+# Rule A: <scope>/sources/ is immutable.
 case "$rel" in
-  Sources/*)
-    echo "BLOCKED: Sources/ is immutable (read-only curated input per CLAUDE.md). Never edit or delete it — wiki notes summarize it and point back via the 'sources' frontmatter field." >&2
+  */sources/*)
+    echo "BLOCKED: sources/ is immutable (read-only curated input per CLAUDE.md). Never edit or delete it — wiki notes summarize it and point back via the 'sources' frontmatter field." >&2
     exit 2
     ;;
 esac
 
-# Rule B: don't create NEW AI notes inside Atlas/ (only fires on Write to a path
-# that doesn't exist yet; editing an existing Atlas note is left to judgment).
+# Rule B: don't create NEW AI notes inside <scope>/notes/ (only fires on Write to
+# a path that doesn't exist yet; editing an existing note is left to judgment).
 if [ "$tool" = "Write" ] && [ ! -e "$path" ]; then
   case "$rel" in
-    Atlas/*)
-      echo "BLOCKED: '$rel' is a NEW note in Atlas/ (your personal, timeless notes). AI-generated notes default to Calendar/ or AIOS/History/ — propose edits to Atlas notes, don't create them there." >&2
+    */notes/*)
+      echo "BLOCKED: '$rel' is a NEW note in a notes/ dir (your personal, timeless notes). AI-generated notes default to the scope's projects/ or content/ dirs, or AIOS/History/ — propose edits to personal notes, don't create them there." >&2
       exit 2
       ;;
   esac
@@ -87,7 +87,7 @@ for i in "${!layers[@]}"; do
   [[ "$allowed" == *"|$other|"* ]] && continue          # explicitly tolerated
 
   if printf '%s' "$new_content" | grep -qiE "${tokens[$i]}"; then
-    echo "BLOCKED: '$rel' is ${own_layer}-layer content but names the ${other} layer. Those layers are walled off from each other per CLAUDE.md and AIOS/Systems/layers.tsv. If this is a legitimate meta-mention (e.g. documenting the wall itself), write it under AIOS/ or Calendar/ instead — those are scaffolding and are not guarded." >&2
+    echo "BLOCKED: '$rel' is ${own_layer}-layer content but names the ${other} layer. Those layers are walled off from each other per CLAUDE.md and AIOS/Systems/layers.tsv. If this is a legitimate meta-mention (e.g. documenting the wall itself), write it under AIOS/ instead — that is scaffolding and is not guarded." >&2
     exit 2
   fi
 done

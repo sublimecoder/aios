@@ -2,7 +2,7 @@
 #
 # Read by AIOS/Systems/hooks/lib.sh (aios_lookup). Maps a code repo's DIRECTORY
 # NAME to the identity layer it belongs to and the project slug its knowledge
-# accumulates under (AIOS/Projects/<layer>/<project>.md).
+# accumulates under (<layer>/projects/<project>.md).
 #
 # The layer is NEVER guessed. A repo that isn't listed here is a silent no-op:
 # the SessionStart hook loads no context and the Stop hook writes no digest.

@@ -14,7 +14,7 @@ A published URL (fetch it with WebFetch) or a repo path (read the pushed files).
 Only applicable when the optional wall is enabled (some scope in `AIOS/Systems/layers.tsv` declares `tokens`); if no scope declares tokens, say so and skip to Check 2. Otherwise grep the live artifact for every OTHER walled scope's tokens (column 4), case-insensitively, plus near-identifiers a grep of the vault suggests (handles, domains, ticket-ID shapes). Respect `allow-from` tolerances, same as the leak auditor.
 
 ## Check 2 — first-person claim trace
-Extract every first-person factual claim in the artifact: dates, events, "I did X", "when I…", named places, counts, transactions. For each, find its source in the vault's notes for that scope (its `me-*` file, `Atlas/`, `AIOS/Projects/<scope>/`). A claim with no confirmed source is **fabrication-risk** — LLM-drafted posts invent plausible war stories; the standing rule is that every first-person claim must trace to a confirmed source.
+Extract every first-person factual claim in the artifact: dates, events, "I did X", "when I…", named places, counts, transactions. For each, find its source in the vault's notes for that scope (its `<scope>/me.md`, `<scope>/notes/`, `<scope>/projects/`). A claim with no confirmed source is **fabrication-risk** — LLM-drafted posts invent plausible war stories; the standing rule is that every first-person claim must trace to a confirmed source.
 
 ## Output
 - **Artifact**: URL/path · scope.

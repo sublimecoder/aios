@@ -12,19 +12,19 @@ When a message matches a trigger, open the matching note in `AIOS/Skills/`, foll
 ## Skills grouped by System
 
 ### 🛠️ AI OS Autobuilder — build & maintain your AI assistant → [[AI OS Autobuilder]]
-- [[me-builder]] — interviews you and builds/updates your `me-<scope>` files.
+- [[me-builder]] — interviews you and builds/updates your `<scope>/me.md` files.
 - [[vault-map]] (build mode) — writes/refreshes both halves of the [[Vault Map]] (navigation + creation rules).
 - [[skill-builder]] — the playbook for creating a skill that behaves the same way every run (format choice, invocation mode, completion criteria, leading word, six failure modes) and registering it here.
 
 ### 🔱 Daily Trident — manage the day → [[Daily Trident]]
-- [[daily-brief]] — one skill, two modes, one file (`Calendar/Days/<date>.md`): morning mode = the day's brief (tasks/pipeline scan), evening mode = the day's log (what happened). Trigger aliases: "morning brief" / "daily brief" / "daily log" / "log my day". (Absorbed the former daily-log skill.)
+- [[daily-brief]] — one skill, two modes, one file (`AIOS/History/days/<date>.md`): morning mode = the day's brief (tasks/pipeline scan), evening mode = the day's log (what happened). Trigger aliases: "morning brief" / "daily brief" / "daily log" / "log my day". (Absorbed the former daily-log skill.)
 
 ### 🧭 Sherpa — map out a topic → [[Sherpa]]
 - [[sherpa]] — asks universal questions about a topic, builds a starter MOC in your voice.
 - [[style-guide-MOC]] — reference for what a well-shaped MOC looks like (used by sherpa).
 
 ### ♻️ Weekly Review — review the week → [[Weekly Review]]
-- [[weekly-review]] — analyzes last week's review + this week's daily notes, fills a new review-preview in `Calendar/Reviews/`.
+- [[weekly-review]] — analyzes last week's review + this week's daily notes, fills a new review-preview in `AIOS/History/reviews/`.
 
 ### 💥 Rock Tumbler — fast feedback on creative work → [[Rock Tumbler]]
 - [[rock-tumbler]] — thinking partner; surfaces blind spots and tensions, never writes the final product.

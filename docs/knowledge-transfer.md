@@ -1,6 +1,6 @@
 # Transferring a project brain to a teammate
 
-Once a project note in `AIOS/Projects/<scope>/<project>.md` has accumulated a few months of ingested sessions, it is the single most valuable file in your vault. It is also the one your teammates would benefit from most — and the one most likely to leak something if you hand it over carelessly.
+Once a project note in `<scope>/projects/<project>.md` has accumulated a few months of ingested sessions, it is the single most valuable file in your vault. It is also the one your teammates would benefit from most — and the one most likely to leak something if you hand it over carelessly.
 
 This is the recipe. It is deliberately manual. There is no `/aios-share` command, because the decision of what may leave is not one an agent should make unsupervised.
 
@@ -8,7 +8,7 @@ This is the recipe. It is deliberately manual. There is no `/aios-share` command
 
 Three things, in descending order of value:
 
-1. **The project note** — `AIOS/Projects/<scope>/<project>.md`. Decision-level synthesis: architecture calls, conventions, recurring bug classes, gotchas that cost someone a day.
+1. **The project note** — `<scope>/projects/<project>.md`. Decision-level synthesis: architecture calls, conventions, recurring bug classes, gotchas that cost someone a day.
 2. **The native-memory mirror** — `+/_sessions/.memory/<scope>/<project>/*.md`. One durable fact per file, written by the agent as it worked. Higher resolution than the note, and where most of the note came from.
 3. **The effort hub** — whatever note holds the stack and product overview. Cheap to re-derive; include it for orientation.
 
@@ -32,8 +32,8 @@ Copy the three artifacts into a scratch directory. Never build the bundle inside
 
 ```bash
 BUNDLE=$(mktemp -d)/project-brain
-mkdir -p "$BUNDLE"/{AIOS/Projects/<scope>,memory}
-cp "AIOS/Projects/<scope>/<project>.md"          "$BUNDLE/AIOS/Projects/<scope>/"
+mkdir -p "$BUNDLE"/{<scope>/projects,memory}
+cp "<scope>/projects/<project>.md"          "$BUNDLE/<scope>/projects/"
 cp  +/_sessions/.memory/<scope>/<project>/*.md   "$BUNDLE/memory/"
 ```
 
@@ -41,7 +41,7 @@ cp  +/_sessions/.memory/<scope>/<project>/*.md   "$BUNDLE/memory/"
 
 The project note is about the project. The files around it are about *you*. Remove:
 
-- `[[wikilinks]]` pointing at `me-*` files or notes that only exist in your vault. They render as broken links in theirs and name scopes the recipient has no business knowing exist.
+- `[[wikilinks]]` pointing at `me.md` files or notes that only exist in your vault. They render as broken links in theirs and name scopes the recipient has no business knowing exist.
 - Any frontmatter `related:` entry pointing outside the bundle.
 - Personal framing — "my day job", "<your name>'s notes", the private worktree path you keep on your laptop.
 - Sentences whose subject is you rather than the project.
@@ -68,7 +68,7 @@ If you use a repo, commit it as a **new** repo or a new directory — never by p
 The recipient runs `/aios-bootstrap` first, creating their own vault with their own scopes. Then:
 
 ```bash
-cp -r project-brain/AIOS/Projects/<scope>/<project>.md  ~/code/aios/AIOS/Projects/<scope>/
+cp -r project-brain/<scope>/projects/<project>.md  ~/code/aios/<scope>/projects/
 cp -r project-brain/memory/*.md  ~/code/aios/+/_sessions/.memory/<scope>/<project>/
 ```
 

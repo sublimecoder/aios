@@ -5,7 +5,7 @@ trigger: "build my me" / "update me file"
 ---
 # me-builder
 
-**Purpose:** interview me and build or update my `me-*` files.
+**Purpose:** interview me and build or update my `<layer>/me.md` files.
 
 **Steps:**
 1. Read `AIOS/Systems/layers.tsv` and ask which layer this is for. Never mix layers.
@@ -14,4 +14,4 @@ trigger: "build my me" / "update me file"
 4. Show me the diff; do not overwrite without confirmation.
 5. Log a dated line in [[Log]].
 
-**Dependencies:** `AIOS/Systems/layers.tsv`. **Output:** `AIOS/me-<layer>.md`.
+**Dependencies:** `AIOS/Systems/layers.tsv`, `archive/Templates/me.template.md`. **Output:** `<layer>/me.md`.

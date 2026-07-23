@@ -12,7 +12,7 @@ AIOS treats it as an **editorial** problem. Sessions produce raw signal (commits
 
 That inverts the usual retrieval order:
 
-1. **Direct-load the core.** `CLAUDE.md`, your `me-*` file, the three Maps. Always in context.
+1. **Direct-load the core.** `CLAUDE.md`, your `me.md`, the three Maps. Always in context.
 2. **Graph-traverse the meaningful.** Read the `Knowledge Map`, follow `[[wikilinks]]`.
 3. **RAG the tail.** Only when the first two miss.
 
@@ -32,7 +32,7 @@ Then, in the session:
 /aios-bootstrap
 ```
 
-It interviews you for ten minutes and writes your vault: your scopes, your `me-*` files, your maps, your repo wiring. Everything after that is you using it.
+It interviews you for ten minutes and writes your vault: your scopes, your `me.md` files, your maps, your repo wiring. Everything after that is you using it.
 
 If you'd rather see what it's going to ask before you commit to anything, read [`BOOTSTRAP.md`](BOOTSTRAP.md) — that file *is* the prompt.
 
@@ -42,7 +42,7 @@ If you'd rather see what it's going to ask before you commit to anything, read [
 |---|---|
 | `CLAUDE.md` | Entry point. Read first, every session. |
 | `AIOS/Systems/layers.tsv` | **Scopes** — how the vault partitions context. One scope is normal. |
-| `AIOS/me-<scope>.md` | Who you are in each context, and how you want to be worked with. |
+| `<scope>/me.md` | Who you are in each context, and how you want to be worked with. |
 | `AIOS/Maps/Vault Map.md` | Navigation: where things live, where new notes go. |
 | `AIOS/Maps/Skill Map.md` | Every skill the AI can run, and its trigger phrase. |
 | `AIOS/Maps/Knowledge Map.md` | The read-first index of what the wiki knows. |
@@ -71,7 +71,7 @@ Wiring a repo adds a row to `AIOS/Systems/repo-layers.tsv`, merges two hooks int
 
 Both hooks write **only to the vault**, never to the invoking repo. A repo that isn't in the manifest is a silent no-op — the scope is never guessed.
 
-Nightly, `/aios-ingest` compounds the queue into `AIOS/Projects/<scope>/<project>.md` and updates the `Knowledge Map`, fanning out one subagent per digest. Mid-session, `/aios-log <fact>` captures a decision immediately.
+Nightly, `/aios-ingest` compounds the queue into `<scope>/projects/<project>.md` and updates the `Knowledge Map`, fanning out one subagent per digest. Mid-session, `/aios-log <fact>` captures a decision immediately.
 
 The loop: **code → digest → ingest → brain → next session's context.**
 
@@ -96,31 +96,35 @@ For them, `layers.tsv` has a `tokens` column. Fill it in and two mechanisms come
 - **Write time** — a `PreToolUse` hook blocks a write that drops one scope's tokens into another scope's folders. Cheap grep, near-zero false positives.
 - **Publish time** — the `layer-leak-auditor` subagent catches the inferred crossings a grep can't: a codename, a URL, two individually-safe facts that are jointly identifying.
 
-Leave `tokens` as `-` (the default) and both stay inert. The guard's other two rules — `Sources/` is immutable, the AI never authors new `Atlas/` notes — apply either way.
+Leave `tokens` as `-` (the default) and both stay inert. The guard's other two rules — `<scope>/sources/` is immutable, the AI never authors new `<scope>/notes/` notes — apply either way.
 
 ## Verify
 
 Every moving part has a self-check. None of them touch your real vault, LaunchAgents, or crontab.
 
 ```bash
-bash .claude/hooks/test_vault_write_guard.sh   # 21 passed, 0 failed
+bash .claude/hooks/test_vault_write_guard.sh   # 23 passed, 0 failed
 bash scripts/test_aios_wire_repo.sh            # 25 passed, 0 failed
 bash scripts/test_aios_install_nightly.sh      # 15 passed, 0 failed
 ```
 
 ## Folder framework
 
-LYT's ACE, plus `AIOS/`:
+Scope-first — the scope IS the filesystem:
 
 ```
-+/         Inbox — raw captures land here
-AIOS/      The AI OS: me-* files, Maps, Skills, Systems, History, Projects
-Atlas/     Timeless knowledge. Hand-written; the AI proposes, never creates
-Calendar/  Days/ and Reviews/
-Efforts/   Works & projects
-Sources/   Immutable curated inputs, partitioned by scope. Read-only, enforced
-x/         Templates, attachments, old design docs
++/           Inbox — raw captures land here
+AIOS/        The AI OS (scope-neutral): Maps, Skills, Systems, History
+<scope>/     One dir per scope in layers.tsv (default: main/)
+  me.md        Who you are in this context — read first
+  notes/       Timeless knowledge. Hand-written; the AI proposes, never creates
+  content/     Drafts and works-in-progress
+  projects/    AI-maintained project brains, one per wired repo
+  sources/     Immutable curated inputs. Read-only, enforced
+archive/     Templates, attachments, old design docs
 ```
+
+A path's first segment names its scope — the one prefix the write guard, ingest, and leak audits all key on. (v1 of this template used LYT's ACE folders; `docs/structure-evolution.md` records the evolution and why we'd start scope-first today.)
 
 ## Design notes
 

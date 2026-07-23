@@ -13,7 +13,7 @@ trigger: "rename X to Y everywhere" / "harmonize this convention"
    - **convention** — old form → new form (rules, formatting, headings, labels, structures). Touch only the convention, never content meaning.
 2. Find every occurrence in scope.
 3. Show the planned changes; apply on confirmation.
-4. Skip `AIOS/History/` and `Calendar/` history files (preserve the record).
+4. Skip `AIOS/History/` (preserve the record).
 5. Log a dated line in [[Log]].
 
 **Dependencies:** none. **Output:** updated notes + change report.

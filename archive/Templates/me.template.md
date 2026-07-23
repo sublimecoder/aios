@@ -33,7 +33,7 @@ related: ["[[Vault Map]]", "[[Skill Map]]"]
 -->
 
 ## Core references
-- <Link the scope's index note, project hub, or key Atlas notes with [[wikilinks]].>
+- <Link the scope's index note, project hub, or key notes/ pages with [[wikilinks]].>
 
 ## Durable preferences
 _(AI appends durable facts for this scope here over time; also log a dated line in [[Log]].)_

@@ -15,7 +15,7 @@ gitinit() { git -c init.templateDir="$EMPTY_TMPL" init -q "$1"; }
 
 # Fake vault
 V="$TMP/vault"; mkdir -p "$V/AIOS/Systems/hooks" "$V/AIOS/Systems/templates"
-printf '# layer\tlabel\tglobs\ttokens\tallow\nwork\tWork\tEfforts/Work/*\t-\t-\n' > "$V/AIOS/Systems/layers.tsv"
+printf '# layer\tlabel\tglobs\ttokens\tallow\nwork\tWork\twork/*\t-\t-\n' > "$V/AIOS/Systems/layers.tsv"
 printf '# repo-dir\tlayer\tproject-slug\n' > "$V/AIOS/Systems/repo-layers.tsv"
 for h in aios-context.sh aios-digest.sh; do printf '#!/bin/sh\nexit 0\n' > "$V/AIOS/Systems/hooks/$h"; chmod +x "$V/AIOS/Systems/hooks/$h"; done
 printf 'scope={{SCOPE}} project={{PROJECT}} vault={{VAULT}}\n' > "$V/AIOS/Systems/templates/CLAUDE.local.md.tmpl"

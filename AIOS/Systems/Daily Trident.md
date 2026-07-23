@@ -8,4 +8,4 @@ related: ["[[Skill Map]]"]
 
 **Skills:** [[daily-brief]] (two modes — absorbed the former daily-log)
 
-**Use when:** starting the day (morning mode) or closing it out (log mode) — both via [[daily-brief]]. On-demand; [[Log]] is the primary time-based record. Output lands in `Calendar/Days/`.
+**Use when:** starting the day (morning mode) or closing it out (log mode) — both via [[daily-brief]]. On-demand; [[Log]] is the primary time-based record. Output lands in `AIOS/History/days/`.

@@ -8,4 +8,4 @@ related: ["[[Skill Map]]"]
 
 **Skills:** [[sherpa]] · [[style-guide-MOC]]
 
-**Use when:** I want to think through a new topic and need a structured starting note rather than a blank page. Output goes to `Atlas/`.
+**Use when:** I want to think through a new topic and need a structured starting note rather than a blank page. Output is proposed for the scope's `notes/` (or written to its `content/`).

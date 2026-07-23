@@ -8,4 +8,4 @@ related: ["[[Skill Map]]"]
 
 **Skills:** [[weekly-review]]
 
-**Use when:** weekly. Analyzes the prior review and the week's daily notes/briefs, then fills a new review-preview note in `Calendar/Reviews/`. Also scans open `- [ ]` tasks and the active pipeline.
+**Use when:** weekly. Analyzes the prior review and the week's daily notes/briefs, then fills a new review-preview note in `AIOS/History/reviews/`. Also scans open `- [ ]` tasks and the active pipeline.

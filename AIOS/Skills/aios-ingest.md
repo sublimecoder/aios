@@ -20,8 +20,8 @@ Compound the queued session digests into the wiki. **Run only in the vault.**
 - **Digests are signal, not prose.** Each block is branch + commits + diff-stat.
   Synthesize the *decision-level* meaning (the breadcrumb), not raw diffs. If a
   digest implies nothing durable, skip it — do not invent.
-- **Sources stay immutable.** Write only to `AIOS/Projects/`, `AIOS/History/Log.md`,
-  and `Knowledge Map`. Never edit `Sources/` or create new `Atlas/` notes.
+- **Sources stay immutable.** Write only to `<layer>/projects/`, `AIOS/History/Log.md`,
+  and `Knowledge Map`. Never edit `<layer>/sources/` or create new notes in `<layer>/notes/`.
 - **Dates:** all vault dates derive from local `date +%F`, never from digest UTC
   stamps (late in the local day they disagree).
 - **Dedupe:** collapse byte-identical digest blocks before synthesis (defense in
@@ -30,8 +30,8 @@ Compound the queued session digests into the wiki. **Run only in the vault.**
 ## Steps
 For each layer with a non-empty queue (when the queue is large, fan step 1 out — one `ingest-worker` subagent per digest, per [[Orchestrator]]; workers write only their own project note and hand back the KM + Log lines for steps 1c–d):
 1. For each `<project>.md` in `+/_sessions/<layer>/`:
-   a. Read/create `AIOS/Projects/<layer>/<project>.md` (frontmatter `layer:`,
-      `project:`; link `[[me-<layer>]]`).
+   a. Read/create `<layer>/projects/<project>.md` (frontmatter `layer:`,
+      `project:`; link `[[<layer>/me]]`).
    b. Synthesize the queued digests into durable facts; append/update the note.
       For any digest carrying a `memory:` line, read the named files in
       `+/_sessions/.memory/<layer>/<project>/` and reconcile their facts into the

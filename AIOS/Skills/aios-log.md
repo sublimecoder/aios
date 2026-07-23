@@ -28,7 +28,7 @@ from ANY directory but ONLY ever writes to the vault — never the invoking repo
      led with a parseable `layer/project` tag, e.g.
      `- **2026-06-29** — **work/acme-api** — <what changed>.`
    - If durable, also add it under **Durable preferences** in the matching
-     `me-<layer>.md`, and update any wiki note the fact belongs in. Link with
+     `<layer>/me.md`, and update any wiki note the fact belongs in. Link with
      `[[wikilinks]]`.
    - Do not rewrite prose elsewhere — only append/update these.
 5. **Commit + push the vault** with a clear message + the Co-Authored-By trailer.
@@ -38,6 +38,6 @@ from ANY directory but ONLY ever writes to the vault — never the invoking repo
 1. Note the invoking repo dir for layer+project BEFORE `cd`. Then `cd "$AIOS_VAULT"`.
 2. Resolve layer+project from the manifest (ask only if not listed).
 3. Apply rule 2: reduce to a decision-level summary.
-4. Append the tagged Log line; update `me-<layer>.md` + any relevant wiki note if durable.
+4. Append the tagged Log line; update `<layer>/me.md` + any relevant wiki note if durable.
 5. Commit + push the vault.
 6. Report: what was logged, layer/project, files changed, commit hash. Never touch the invoking repo.

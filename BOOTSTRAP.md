@@ -91,10 +91,16 @@ Do these in order. Verify each before moving on.
 
    Note step 7 already wrote `repo-layers.tsv` rows by hand — running the installer afterward is still correct, it detects the existing row and only wires the settings. If you'd rather, skip step 7 and let the installer write both.
 
-10. **Schedule the nightly ingest**, so the queue drains and the vault compounds without anyone remembering to run it:
+10. **Schedule the ingest**, so the queue drains and the vault compounds without anyone remembering to run it. Install ONE of the two — both draining one queue is the failure they exist to prevent:
 
    ```bash
-   scripts/aios-install-nightly.sh          # 03:00 local; launchd on macOS, cron elsewhere
+   # default: launchd / systemd user timers, two jobs, one owning machine
+   sh AIOS/Systems/aios-scheduler.sh claim      # then commit the marker
+   sh AIOS/Systems/aios-scheduler.sh install
+   sh AIOS/Systems/aios-scheduler.sh            # status; reads only
+
+   # fallback, for a Linux box with no systemd user session: cron
+   scripts/aios-install-nightly.sh              # 03:00 local
    scripts/aios-install-nightly.sh --status
    ```
 
@@ -178,6 +184,7 @@ Full wiring reference: `docs/install.md`.
 | `.claude/agents/` | Subagents that keep read-heavy work out of your main context. |
 | `.claude/hooks/vault-write-guard.sh` | Mechanically enforces: `<scope>/sources/` immutable, no AI-authored `<scope>/notes/` notes, and (optionally) the scope wall. |
 | `scripts/aios-wire-repo.sh` | Connects a code repo to the vault, idempotently. Also writes its `CLAUDE.local.md`. |
-| `scripts/aios-install-nightly.sh` | Schedules the nightly ingest so the vault compounds unattended. |
+| `AIOS/Systems/aios-scheduler.sh` | Default scheduler: two jobs, and only the machine named in `scheduler-host` may install them. |
+| `scripts/aios-install-nightly.sh` | Cron fallback scheduler, for hosts without a systemd user session. |
 
 The design bet: **a hand-curated `Knowledge Map` read first beats vector search** until you're well into the hundreds of notes. Embeddings are the last resort, not the default.

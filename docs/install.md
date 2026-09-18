@@ -145,16 +145,40 @@ Use it when you learn something you'd otherwise re-learn in three weeks. The nig
 
 ---
 
-## 4. The nightly loop
+## 4. The scheduled loop
 
-Digests pile up in `+/_sessions/` and do nothing until they're ingested. Schedule it:
+Digests pile up in `+/_sessions/` and do nothing until they're ingested. Schedule it.
+
+**Two schedulers ship, and they guard different hazards. Install one, not both** — two jobs draining one queue is the failure both of them exist to prevent.
+
+| | `AIOS/Systems/aios-scheduler.sh` (default) | `scripts/aios-install-nightly.sh` (fallback) |
+|---|---|---|
+| Linux backend | systemd **user timers** — needs a user session, plus `loginctl enable-linger` to fire while logged out | **crontab** — works anywhere cron does |
+| macOS backend | launchd | launchd |
+| Jobs | 2: the ingest (retried through the day) and a weekly register sweep | 1: a nightly ingest |
+| Guards against | **two machines** sharing one vault, via the tracked `AIOS/Systems/scheduler-host` marker | **two vaults** on one machine, via the global launchd label / cron line |
+
+### The default
+
+```bash
+sh AIOS/Systems/aios-scheduler.sh            # status; reads only, changes nothing
+sh AIOS/Systems/aios-scheduler.sh claim      # declare THIS host the owner, then commit the marker
+sh AIOS/Systems/aios-scheduler.sh install    # owner only
+sh AIOS/Systems/aios-scheduler.sh uninstall  # always allowed
+```
+
+`install` refuses unless this host is the declared owner; `uninstall` is never gated. The dangerous direction needs a commit, the safe one never does — so you can always stop a machine, and you can only start one by saying so in the repo.
+
+### The cron fallback
+
+Use this when the Linux box has no systemd user session.
 
 ```bash
 scripts/aios-install-nightly.sh           # 03:00 local
 scripts/aios-install-nightly.sh 04:30     # or pick a time
 ```
 
-macOS gets a launchd `LaunchAgent`; everything else gets a crontab line. Idempotent either way.
+macOS gets a launchd `LaunchAgent`; everything else gets a crontab line. Idempotent either way. It refuses to install over a job pointing at a different vault, and treats a job it cannot identify as occupied rather than free.
 
 ```bash
 scripts/aios-install-nightly.sh --dry-run    # run the ingest once, right now

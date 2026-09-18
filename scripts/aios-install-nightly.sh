@@ -8,6 +8,21 @@
 #   scripts/aios-install-nightly.sh --dry-run   run the ingest once, right now
 #
 # macOS -> a launchd LaunchAgent. Linux -> a crontab line. Idempotent either way.
+#
+# THE FALLBACK SCHEDULER, not the default one. AIOS/Systems/aios-scheduler.sh is
+# the default: it runs two jobs instead of one and guards the hazard this script
+# cannot see — two MACHINES sharing one vault, which it settles with the tracked
+# AIOS/Systems/scheduler-host marker. Use this one when its Linux backend does
+# not fit, because systemd user timers need a user session (and `loginctl
+# enable-linger` to fire while logged out) and cron does not.
+#
+# What this script guards instead is the opposite hazard, and it is the only one
+# that does: two VAULTS on one machine. The launchd label and the cron line are
+# global, so a second vault installing from here would silently replace the
+# first — see the fail-closed check below.
+#
+# The two know nothing about each other. Install one. Running both puts two jobs
+# on one queue.
 set -uo pipefail
 
 VAULT="${AIOS_VAULT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -27,7 +42,20 @@ elif [ -d "$HOME/Library/Logs" ]; then LOG_DIR="$HOME/Library/Logs"
 else LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/aios"; fi
 LOG="$LOG_DIR/aios-ingest.log"
 
-is_macos() { [ "$(uname -s)" = "Darwin" ]; }
+# BOTH OVERRIDABLE, and only so this is testable in both directions on one
+# machine. The launchd half of this script is macOS-only, so on a Linux box it is
+# unreachable — and a suite that cannot reach it does not report "skipped", it
+# reports FAILED, forever, which is how a permanently-red check stops being read.
+# Same reasoning and the same env-var convention as AIOS_UNAME_S in
+# AIOS/Systems/aios-check.sh.
+#
+# Neither is a knob for real use: they default to the real `uname` and to
+# PlistBuddy at its absolute path, because resolving PlistBuddy through $PATH
+# would be an injection point on the one platform where this branch runs.
+UNAME_S="${AIOS_UNAME_S:-$(uname -s)}"
+PLISTBUDDY="${AIOS_PLISTBUDDY:-/usr/libexec/PlistBuddy}"
+
+is_macos() { [ "$UNAME_S" = "Darwin" ]; }
 
 # The launchd label and the crontab line are GLOBAL, but a vault is not. Two
 # vaults installing the same label means the second silently replaces the first.
@@ -48,9 +76,9 @@ job_installed() {
 installed_vault() {
   v=""
   if is_macos && [ -f "$PLIST" ]; then
-    v=$(/usr/libexec/PlistBuddy -c 'Print :EnvironmentVariables:AIOS_VAULT' "$PLIST" 2>/dev/null)
+    v=$("$PLISTBUDDY" -c 'Print :EnvironmentVariables:AIOS_VAULT' "$PLIST" 2>/dev/null)
     if [ -z "$v" ]; then
-      p=$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:1' "$PLIST" 2>/dev/null)
+      p=$("$PLISTBUDDY" -c 'Print :ProgramArguments:1' "$PLIST" 2>/dev/null)
       case "$p" in *"$HOOK_SUFFIX") v="${p%"$HOOK_SUFFIX"}";; esac
     fi
   elif ! is_macos; then

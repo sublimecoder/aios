@@ -2,6 +2,12 @@
 # AIOS nightly ingest — runs headless /aios-ingest when session digests are queued.
 # Install with: scripts/aios-install-nightly.sh   (launchd on macOS, cron elsewhere)
 #
+# The runner for the CRON FALLBACK scheduler. aios-scheduled-ingest.sh beside it
+# is the runner for the default one, and carries what this does not: a
+# concurrent-writer pathspec, stand-down detection, and `timeout -k` escalation.
+# The two overlap and consolidating them is open work — do not edit one and
+# assume the other followed.
+#
 # Env:
 #   AIOS_VAULT    vault root         (default ~/code/aios)
 #   AIOS_LOG_DIR  where logs land    (default ~/Library/Logs on macOS, else

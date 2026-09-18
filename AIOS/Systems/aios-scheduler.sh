@@ -2,6 +2,16 @@
 # aios-scheduler.sh — install / uninstall the AIOS timers on THIS machine, and
 # move ownership between machines without ever having two of them firing.
 #
+# THE DEFAULT SCHEDULER. The other one, scripts/aios-install-nightly.sh, is the
+# cron fallback: fewer jobs, and it guards a different hazard (two VAULTS on one
+# machine, via the shared launchd label) rather than this one's (two MACHINES on
+# one vault, via the scheduler-host marker). Prefer this script unless the Linux
+# box has no systemd user session — user timers need one, plus `loginctl
+# enable-linger` to fire while logged out; cron needs neither.
+#
+# The two know nothing about each other. Install one. Running both puts two jobs
+# on one queue.
+#
 # WHY A SCRIPT AND NOT A RUNBOOK. Two hosts firing /aios-ingest at 08:00 against
 # one vault double-drain +/_sessions/ and race the push; .aios-ingest.lock is a
 # per-machine mkdir lock and cannot see across machines. The dangerous window is

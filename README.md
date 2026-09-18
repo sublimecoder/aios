@@ -54,11 +54,11 @@ If you'd rather see what it's going to ask before you commit to anything, read [
 | `AIOS/Systems/hooks/rules-lib.sh` | The one place the guard's literal patterns live. Assignments only. |
 | `AIOS/Systems/aios-check.sh` | Health check. Prints only failures, exits 1 if any. Hang it off SessionStart. |
 | `AIOS/Systems/aios-install.sh` | Wires **this machine** to the vault. Idempotent, dry-run by default. |
-| `AIOS/Systems/aios-scheduler.sh` | Installs/moves the scheduled-ingest timers. Exactly one machine may own them. |
+| `AIOS/Systems/aios-scheduler.sh` | The default scheduler: two jobs, launchd or systemd user timers, and exactly one machine may own them. |
 | `AIOS/Systems/effort-table.md` | Task type → model. The one place model names live. |
 | `AIOS/Systems/reasoning-doctrine.md` | Standing cognitive procedures, written as orders, not advice. |
 | `scripts/aios-wire-repo.sh` | Connects a code repo to the vault. Idempotent; the only thing here that writes to a repo. |
-| `scripts/aios-install-nightly.sh` | Older launchd/cron scheduler, superseded by `aios-scheduler.sh`. |
+| `scripts/aios-install-nightly.sh` | The cron fallback scheduler. One nightly job; the only backend that needs no systemd user session. |
 
 ## Is it actually wired?
 
@@ -85,7 +85,7 @@ The part that makes it compound. Full detail: [`docs/install.md`](docs/install.m
 
 ```bash
 scripts/aios-wire-repo.sh ~/code/acme-api work    # one command per repo
-scripts/aios-install-nightly.sh                   # drain the queue at 03:00
+sh AIOS/Systems/aios-scheduler.sh install         # drain the queue on a timer
 ```
 
 Wiring a repo adds a row to `AIOS/Systems/repo-layers.tsv`, merges two hooks into *that repo's* `.claude/settings.json`, and drops a git-ignored `CLAUDE.local.md` pointing back at the vault:
@@ -104,9 +104,22 @@ Verify any of it:
 
 ```bash
 scripts/aios-wire-repo.sh --check ~/code/acme-api
-scripts/aios-install-nightly.sh --status
-scripts/aios-install-nightly.sh --dry-run
+sh AIOS/Systems/aios-scheduler.sh                 # status; reads only
+scripts/aios-install-nightly.sh --dry-run         # run one ingest right now
 ```
+
+### Which scheduler
+
+Two ship, because they guard different hazards. Pick one — running both means two jobs draining one queue.
+
+| | `aios-scheduler.sh` (default) | `aios-install-nightly.sh` (fallback) |
+|---|---|---|
+| Linux backend | systemd **user timers** — needs a user session, and `loginctl enable-linger` to fire while logged out | **crontab** — works anywhere cron does |
+| macOS backend | launchd | launchd |
+| Jobs | 2: the ingest (with retries) and a weekly register sweep | 1: a nightly ingest |
+| Guards against | **two machines** sharing one vault, via the `AIOS/Systems/scheduler-host` marker | **two vaults** on one machine, via the shared launchd label / cron line |
+
+Use the scheduler unless your Linux box has no systemd user session. Neither knows about the other, so if you install both, uninstall one.
 
 ## Scopes, and the optional wall
 

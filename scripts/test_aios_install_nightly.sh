@@ -4,11 +4,52 @@
 # fake $HOME with a fake plist, and we only exercise the pure functions plus the
 # guard's decision, never the launchctl/crontab writes.
 #
+# RUNS THE macOS PATH ON EVERY PLATFORM, on purpose. Every case below is
+# launchd-shaped, and on a non-Darwin box the script's plist branch is
+# unreachable — so without the two overrides these assertions do not report
+# "skipped", they report FAILED, on every run, forever. A permanently-red suite
+# is one nobody reads, which costs the hijack guard it exists to protect.
+#
+# AIOS_UNAME_S forces the branch; AIOS_PLISTBUDDY supplies a stand-in for
+# /usr/libexec/PlistBuddy, which does not exist off macOS. Both are test-only
+# seams (see the script's own note on why neither resolves through $PATH).
+#
+# STILL UNTESTED: the Linux crontab branch. Exercising it means writing the
+# invoking user's real crontab — there is no $HOME-relative fixture for it —
+# and this file's first promise is that it touches neither. Left honest rather
+# than faked.
+#
 # Run: bash scripts/test_aios_install_nightly.sh
 set -uo pipefail
 
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/aios-install-nightly.sh"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+
+export AIOS_UNAME_S=Darwin
+export AIOS_PLISTBUDDY="$TMP/plistbuddy"
+# Reads only the two keys the script asks for, from the shape mkplist writes.
+# Prints nothing for an absent key, which is what the caller's `[ -z "$v" ]`
+# fallback to ProgramArguments expects from the real PlistBuddy.
+cat > "$AIOS_PLISTBUDDY" <<'STUB'
+#!/usr/bin/env bash
+# $1 = -c, $2 = Print :Some:Path, $3 = plist
+case "$2" in
+  *EnvironmentVariables:AIOS_VAULT*)
+    awk -v RS='<key>' '/^AIOS_VAULT<\/key>/ {
+      if (match($0, /<string>[^<]*<\/string>/)) {
+        s = substr($0, RSTART + 8, RLENGTH - 17); print s; exit
+      }
+    }' "$3" ;;
+  *ProgramArguments:1*)
+    awk '/<key>ProgramArguments<\/key>/ {f = 1}
+         f { while (match($0, /<string>[^<]*<\/string>/)) {
+               n++
+               if (n == 2) { print substr($0, RSTART + 8, RLENGTH - 17); exit }
+               $0 = substr($0, RSTART + RLENGTH)
+             } }' "$3" ;;
+esac
+STUB
+chmod +x "$AIOS_PLISTBUDDY"
 
 pass=0; fail=0
 ok(){ pass=$((pass+1)); }

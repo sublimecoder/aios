@@ -19,7 +19,16 @@ AIOS_MANIFEST="$AIOS_VAULT/AIOS/Systems/repo-layers.tsv"
 # was treated as a live run`, i.e. the stale-lock guard silently inverted.
 # A fallback that cannot fire is worse than no fallback, because it reads as
 # cover in review.
-case "$(uname -s)" in
+#
+# AIOS_UNAME_S IS A TEST SEAM, and it exists because of the paragraph above.
+# Linux is the `*)` arm, so on the machine these suites actually run, the Darwin
+# arm — AIOS_STAT_FLAG, AIOS_STAT_SIG, and the darwin branch of mtime() and
+# nosleep() — is unreachable and therefore unasserted. That is the same shape as
+# the `stat -f` fallback that read as cover and had silently inverted the
+# stale-lock guard: a branch nothing can reach is a branch nothing can check.
+# Overridable so test_hooks.sh can exercise BOTH arms on ONE machine. Same
+# convention and same reason as AIOS_UNAME_S in AIOS/Systems/aios-check.sh.
+case "${AIOS_UNAME_S:-$(uname -s)}" in
   Darwin) AIOS_OS=darwin; AIOS_STAT_FLAG=-f; AIOS_STAT_SIG='%z:%m:%N' ;;
   *)      AIOS_OS=linux;  AIOS_STAT_FLAG=-c; AIOS_STAT_SIG='%s:%Y:%n' ;;
 esac

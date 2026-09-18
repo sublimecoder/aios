@@ -145,4 +145,48 @@ git -C "$AIOS_VAULT" diff --cached --name-only | grep -q '^UNRELATED.md$' \
 git -C "$AIOS_VAULT" log -1 --name-only --format= | grep -q '_sessions/creator/fakerepo.md' \
   || fail "digest commit did not include its own digest file"
 
+# --- lib.sh's PLATFORM ARMS, both of them ------------------------------------
+# Linux is the `*)` arm, so on the machine this suite runs the Darwin arm is
+# unreachable — AIOS_STAT_FLAG, AIOS_STAT_SIG and the darwin branches of mtime()
+# and nosleep() were shipped unasserted. lib.sh's own comment says a fallback
+# that cannot fire "reads as cover in review"; this is that argument applied to
+# the branch selector itself. AIOS_UNAME_S is the seam that makes both reachable.
+#
+# WHAT IS ASSERTED: the SELECTION, not the BSD binaries. `stat -f %m` cannot run
+# here and pretending otherwise would be the fake cover this is fixing. What can
+# break silently is the mapping — a flag/format pair swapped between arms feeds
+# a GNU `stat` the BSD spelling, which is exactly the failure that inverted the
+# stale-lock guard.
+LIB="$HOOKS/lib.sh"
+
+# Darwin arm
+D=$(AIOS_UNAME_S=Darwin sh -c '. "$1"; printf "%s|%s|%s" "$AIOS_OS" "$AIOS_STAT_FLAG" "$AIOS_STAT_SIG"' _ "$LIB")
+[ "$D" = "darwin|-f|%z:%m:%N" ] \
+  || fail "lib.sh's Darwin arm is wrong: got '$D', want 'darwin|-f|%z:%m:%N' (BSD stat takes -f and %m for mtime)"
+
+# Linux arm — pinned explicitly, not just inherited from the host, so a future
+# edit cannot quietly swap the two arms' values and still pass here.
+L=$(AIOS_UNAME_S=Linux sh -c '. "$1"; printf "%s|%s|%s" "$AIOS_OS" "$AIOS_STAT_FLAG" "$AIOS_STAT_SIG"' _ "$LIB")
+[ "$L" = "linux|-c|%s:%Y:%n" ] \
+  || fail "lib.sh's Linux arm is wrong: got '$L', want 'linux|-c|%s:%Y:%n' (GNU stat takes -c and %Y for mtime)"
+
+# The arms must DIFFER. Both collapsing to one value is the failure mode that
+# looks fine on the host that happens to match.
+[ "$D" != "$L" ] || fail "lib.sh's two platform arms produced identical values — the selector is not branching"
+
+# An unset AIOS_UNAME_S must still consult the real uname, or the seam has
+# quietly become the configuration.
+H=$(sh -c '. "$1"; printf "%s" "$AIOS_OS"' _ "$LIB")
+case "$(uname -s)" in
+  Darwin) [ "$H" = darwin ] || fail "unset AIOS_UNAME_S did not fall back to the real uname (got '$H' on Darwin)" ;;
+  *)      [ "$H" = linux ]  || fail "unset AIOS_UNAME_S did not fall back to the real uname (got '$H' off Darwin)" ;;
+esac
+
+# nosleep must WRAP on Darwin and be transparent on Linux. Asserted through the
+# file's text, because `caffeinate` does not exist here to be called.
+grep -q 'caffeinate -i "\$@"' "$LIB" \
+  || fail "lib.sh's nosleep lost its Darwin caffeinate wrapper — an unattended macOS run re-sleeps mid-stream"
+[ "$(AIOS_UNAME_S=Linux sh -c '. "$1"; nosleep printf ok' _ "$LIB")" = "ok" ] \
+  || fail "lib.sh's nosleep is not transparent on Linux — it must exec the command unchanged"
+
 echo "ALL PASS"

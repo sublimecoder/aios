@@ -58,6 +58,25 @@ The main session is the **orchestrator** — it runs on the strongest available 
 ## Folder framework — scope-first
 `+/` Inbox · `AIOS/` the AI OS (scope-neutral: Maps, Skills, Systems, History) · `<scope>/` one dir per scope with `me.md` + `notes/` + `content/` + `projects/` + `sources/` (sources read-only) · `archive/` xtras. Full detail in `AIOS/Maps/Vault Map.md`; the structure's history in `docs/structure-evolution.md`.
 
+## Doctrine — how to think and what to run on
+Three scope-neutral files in `AIOS/Systems/`, meant to be imported by your **global** agent config so they reach every repo, not only this vault:
+- [[effort-table]] — task type → model. The one place model names live; every agent file and skill inherits from it.
+- [[reasoning-doctrine]] — standing cognitive procedures (read intent, verify facts, mark certainty, self-attack, final gate).
+- [[ponytail-amendment]] and [[plan-recon-amendment]] — dead-code asymmetry, and recon order for planning.
+
+All four are listed in `AIOS_DELIBERATE_EDIT_PATHS` (`AIOS/Systems/hooks/rules-lib.sh`), so the write guard refuses an edit to them as a side effect of another task. Change one as its own deliberate task.
+
+## Enforcement is wired per-harness — and can be absent
+The rules above (scope wall, `sources/` immutability, personal-notes protection) are enforced mechanically by `.claude/hooks/vault-write-guard.sh` — **but only in a harness wired to it.** Claude Code reads `.claude/settings.json`, which is committed here, so cloning wires it. Another harness reads a config outside this repo, so a fresh machine can get a vault whose guard never runs, silently, because unenforced rules look exactly like obeyed ones.
+
+```bash
+sh AIOS/Systems/aios-install.sh            # show what would change
+sh AIOS/Systems/aios-install.sh --apply    # wire this machine
+sh AIOS/Systems/aios-check.sh              # quiet when clean, exit 1 when not
+```
+
+`aios-check.sh` is detection only — it fixes nothing, and every finding names the skill that does. Run it from SessionStart.
+
 ## Version control
 - After meaningful changes, commit with a clear message and (when asked) `git push`.
 - **If any scope is private, keep this repo private.** Git history is forever: a commit that exposed something cannot be un-shared by a later fix.

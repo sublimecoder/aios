@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.aios.scheduled-ingest</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>__AIOS_VAULT__/AIOS/Systems/hooks/aios-scheduled-ingest.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>AIOS_VAULT</key><string>__AIOS_VAULT__</string>
+  </dict>
+  <!-- Named "scheduled", not "nightly": it fired 03:00/07:00/11:00 until
+       2026-08-04, and the old name outlived the schedule long enough to send
+       two debugging sessions looking for an overnight run. Renamed 2026-08-05.
+       This file is the copy of record — ~/Library/LaunchAgents/ holds the live
+       one. On 2026-08-04 the schedule was changed in the live plist ONLY, so
+       this copy said 03/07/11 for a day while the job ran 08/12/16. Edit here,
+       then re-copy and re-bootstrap; never the other way round.
+       08:00 is the real run; 12:00 and 16:00 are retries. The script exits
+       immediately when the queue is empty, so a fire with nothing to do costs
+       nothing — that makes "retry" just another calendar entry instead of a
+       state machine. A run that dies on a session limit (seen 2026-07-10) is
+       retried the same day rather than waiting a full one. launchd gives
+       each entry the same asleep-at-fire-time catch-up, and coalesces missed
+       entries into ONE run on wake rather than replaying all three.
+       Moved off 03:00/07:00/11:00 on 2026-08-04: launchd DarkWakes the Mac to
+       fire the job and macOS re-sleeps ~40s later (nothing holds a power
+       assertion), so a multi-minute `claude -p` lost its network stream
+       mid-response. Waking hours are the cheap half of that fix — and only
+       half: see the ⚠️ NOT SUFFICIENT note in the script, proved 2026-08-05. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Hour</key><integer>8</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+    <dict>
+      <key>Hour</key><integer>12</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+    <dict>
+      <key>Hour</key><integer>16</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+  </array>
+  <key>StandardErrorPath</key><string>__HOME__/Library/Logs/aios-ingest.launchd.log</string>
+  <key>StandardOutPath</key><string>__HOME__/Library/Logs/aios-ingest.launchd.log</string>
+  <key>RunAtLoad</key><false/>
+</dict>
+</plist>

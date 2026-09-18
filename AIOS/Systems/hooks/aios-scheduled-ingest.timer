@@ -1,0 +1,23 @@
+[Unit]
+Description=AIOS scheduled ingest — 08:00 with 12:00 and 16:00 retries
+
+[Timer]
+# Mirrors com.aios.scheduled-ingest.plist exactly. 08:00 is the real run; 12:00
+# and 16:00 are retries. The script exits immediately when the queue is empty, so
+# a fire with nothing to do costs nothing -- which is what makes "retry" just
+# another calendar entry instead of a state machine. A run that dies on a session
+# limit is retried the same day rather than waiting a full one.
+#
+# Waking hours, not overnight: the job moved off 03:00/07:00/11:00 on 2026-08-04
+# because the Mac was reliably asleep at those times. Kept here so the two
+# schedulers stay comparable and the rollback is a straight swap.
+OnCalendar=*-*-* 08,12,16:00:00
+
+# Replays ONE missed fire on wake, matching the coalescing the plist comment
+# documents for launchd -- launchd collapses missed StartCalendarInterval entries
+# into a single run rather than replaying all three, and Persistent=true is the
+# same bargain. Without it a suspended laptop simply skips the day.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

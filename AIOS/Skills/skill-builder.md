@@ -13,7 +13,7 @@ A skill exists to wrangle determinism out of a stochastic system. **Predictabili
 
 Two live in this vault. They are not interchangeable.
 
-- **Portable skill** → `skills/<name>/SKILL.md`. Cross-agent format (YAML `name` + `description`, optional `disable-model-invocation`). Symlinked into `~/.claude/skills/` by `skills/link-global.sh`, so it works in **every** project. Choose this when the skill is useful outside the vault.
+- **Portable skill** → `skills/<name>/SKILL.md`. Cross-agent format (YAML `name` + `description`, optional `disable-model-invocation`). Symlinked into `~/.claude/skills/` and `~/.agents/skills/` by `skills/link-global.sh`, so it works in **every** project. Choose this when the skill is useful outside the vault.
 - **Vault note** → `AIOS/Skills/<name>.md`. Frontmatter `tags: [aios, skill]`, `system`, `trigger`; body of **Purpose**, **Steps**, **Dependencies**, **Output**. In-session only; never symlinked. Choose this when the skill only makes sense with the vault open.
 
 If unsure, ask. A vault note that wanted to be portable is invisible from every other repo.

@@ -1,11 +1,11 @@
 ---
 tags: [aios, skill]
-system: Chronicler
+system: Capture
 trigger: "save this verbatim" / "summarize this conversation" / "append this to my note"
 ---
 # chronicle
 
-**Purpose:** save conversation content to a note — three modes, one skill. (Merged from verbatim + summarizer + quick-append.)
+**Purpose:** save conversation content to a note — three modes, one skill. (Merged 2026-07-22 from verbatim + summarizer + quick-append.)
 
 **Steps:**
 1. Pick the mode from the trigger:

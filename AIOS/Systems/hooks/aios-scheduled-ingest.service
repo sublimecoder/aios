@@ -1,0 +1,37 @@
+[Unit]
+Description=AIOS scheduled ingest (headless /aios-ingest when digests are queued)
+
+# THE LINUX SHAPE OF THE DARKWAKE BUG. com.aios.scheduled-ingest.plist records
+# that launchd DarkWakes the Mac to fire this job and macOS re-sleeps ~40s later,
+# killing a multi-minute `claude -p` stream mid-response -- the death string in 4
+# of 7 failed transcripts. systemd does not sleep underneath a running unit, but
+# it has the same trap at the other end: a timer that fires on RESUME can start
+# before the network is up, and the stream dies the same way for a different
+# reason. Persistent=true makes resume-firing the COMMON case, not the rare one.
+#
+# THAT IS REAL AND THE FIX THAT USED TO SIT HERE WAS NOT. This unit carried
+# Wants=/After=network-online.target under a comment calling the ordering
+# "load-bearing"; network-online.target DOES NOT EXIST in the user manager
+# (`systemctl --user list-units network-online.target` -> not-found), so systemd
+# ignored both lines from the day they were written. The race then ran unguarded
+# and cost 2026-09-11 and 09-12 entirely: pull failed on a just-resumed box, the
+# stale local count read 0, "queue empty, skipping", no ingest either day.
+# Handled now in the script, which needs no target to exist: aios-scheduled-
+# ingest.sh retries the pull 3x and refuses to call a stale zero an empty queue.
+# Do not re-add a user-manager dependency on a system target.
+
+[Service]
+Type=oneshot
+Environment=AIOS_VAULT=__AIOS_VAULT__
+ExecStart=/bin/sh __AIOS_VAULT__/AIOS/Systems/hooks/aios-scheduled-ingest.sh
+
+# No StandardOutput/StandardError. The plists routed both to
+# ~/Library/Logs/aios-ingest.launchd.log, which was 0 bytes and last written
+# 2026-07-09 -- every scheduled fire for two months discarded its streams,
+# invisible while runs succeeded and total darkness the first time one died.
+# systemd captures both into the journal with nothing to configure and nothing
+# to get wrong:  journalctl --user -u aios-scheduled-ingest
+#
+# The script keeps its own `timeout -k 300 3600` cap. That is GNU timeout on
+# Arch, native, no shim -- and it is deliberately NOT expressed as a systemd
+# RuntimeMaxSec, so the cap stays in one place across both schedulers.

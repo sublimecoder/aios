@@ -1,0 +1,30 @@
+[Unit]
+Description=AIOS weekly register pass (headless /after-action-apply --draft)
+
+# YIELD TO THE INGEST. Both jobs take the SAME .aios-ingest.lock (deliberately —
+# see the script), and both timers carry Persistent=true, so on a resume that has
+# missed fires for both they are replayed in the same instant and race for it.
+# On 2026-09-13 15:42:16 this job won by milliseconds and held the lock for its
+# full 1800s cap; the ingest logged "another ingest in flight (lock held),
+# skipping" two seconds later and, being a suspended laptop's ONLY fire that day,
+# did not run at all. Ordering makes the coin-flip deterministic in the right
+# direction: this pass applies nothing and costs only the next fire when it is
+# skipped, whereas a skipped ingest leaves the queue undrained for a day.
+# Type=oneshot, so After= waits for the ingest to EXIT, not merely to start.
+After=aios-scheduled-ingest.service
+
+# NOT network-online.target. Both units carried Wants=/After=network-online.target
+# with a comment calling the ordering load-bearing; that target does not exist in
+# the USER manager (`systemctl --user list-units network-online.target` ->
+# not-found), so systemd ignored both lines silently for as long as they existed.
+# The resume-before-network race they claimed to cover is handled where it can
+# actually be handled: the pull retry loop inside aios-scheduled-ingest.sh.
+
+[Service]
+Type=oneshot
+Environment=AIOS_VAULT=__AIOS_VAULT__
+ExecStart=/bin/sh __AIOS_VAULT__/AIOS/Systems/hooks/aios-weekly-register.sh
+
+# Streams go to the journal:  journalctl --user -u aios-weekly-register
+# The script keeps its own `timeout -k 300 1800` cap; see the ingest service for
+# why that is not restated as RuntimeMaxSec.

@@ -42,6 +42,8 @@ When a message matches a trigger, open the matching note in `AIOS/Skills/`, foll
 - [[km-rotate]] — shrinks ballooned [[Knowledge Map]] lines back to one-line summaries, moving dated activity clauses into the notes; never drops a fact.
 - [[open-flags]] — registers every ⚠️/OPEN marker in project notes, forces a disposition during ingest, escalates flags older than 30 days.
 - [[wiki-lint]] — health-checks the knowledge wiki (schema → staleness → gaps → drift → orphans → dupes → contradictions), emits a 🟢/🟡/🔴 report, proposes fixes only. Trigger: "lint the wiki". Also `/wiki-lint`; isolated run via the `wiki-lint-runner` subagent.
+- [[after-action]] — appends the OS's own procedure defects to `AIOS/History/audits/after-action.md` at the end of every [[aios-ingest]] run, applies the mechanical ones, and holds the judgment calls for you. Also `/after-action-apply`; per-row fan-out via the `register-worker` subagent.
+- [[provenance-rollup]] — rotates a project's `source-history.md` entries older than the current month into monthly archives, so each ingest's dedupe read stays cheap. Also `/provenance-rollup`.
 
 ### 📦 Courier — share notes between vaults & people → [[Courier]]
 - [[sanitize]] — duplicate a note and produce a shareable version with personal details removed/flagged. **Use before sharing anything outside this vault.**
@@ -56,6 +58,7 @@ Doctrine + model routing live in [[Orchestrator]]. These are **agents**, not ski
 - `wiki-query` — cited answer from one scope's wiki (read-only Query op).
 - `graphify-scout` — graph-first codebase recon: `graphify-out/` query, grep-verified `file:line` map. Dispatch before Explore/grep for "where does X live" questions.
 - `publish-verify` — post-publish check of a live URL/repo push: cross-scope token grep + first-person claim trace (unsourced = fabrication-risk). Read-only.
+- `register-worker` — verdicts ONE open row of the after-action register in an isolated context; fan out during `/after-action-apply`. Read-only.
 
 ### 🔌 AIOS Wire — cross-repo knowledge sync
 The mechanism that lets a coding session in *any* repo feed this vault without ever writing to that repo. See `AIOS/Systems/hooks/`.
@@ -65,6 +68,7 @@ The mechanism that lets a coding session in *any* repo feed this vault without e
 ## 🧰 Portable global skills (`skills/`, all projects)
 A different class from everything above. `skills/<name>/SKILL.md` files are symlinked into `~/.claude/skills/` by `skills/link-global.sh`, so Claude Code **auto-discovers** them in every project — no vault trigger phrase, routing is by each skill's `description`. Setup and provenance: `skills/README.md`.
 
+- `ai-tells` — scan prose for the tells that mark it machine-written, plus a tested two-pass grep block. Ready now.
 - `create-cli` — CLI design rubric: args, flags, output contract, exit codes. Ready now.
 - `github-deep-review` — evidence-first PR/issue review: root cause, best fix, provenance. Needs `gh`.
 - `markdown-converter` — PDF/Office/HTML/YouTube → Markdown. Needs `uvx`.

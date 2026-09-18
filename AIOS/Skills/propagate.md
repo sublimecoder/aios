@@ -5,7 +5,7 @@ trigger: "rename X to Y everywhere" / "harmonize this convention"
 ---
 # propagate
 
-**Purpose:** sweep one change across every note that carries it — a rename or a convention. (Merged from cascade + harmonize.)
+**Purpose:** sweep one change across every note that carries it — a rename or a convention. (Merged 2026-07-22 from cascade + harmonize.)
 
 **Steps:**
 1. Confirm the change:

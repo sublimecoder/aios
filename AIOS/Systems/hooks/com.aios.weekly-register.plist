@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.aios.weekly-register</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>__AIOS_VAULT__/AIOS/Systems/hooks/aios-weekly-register.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>AIOS_VAULT</key><string>__AIOS_VAULT__</string>
+  </dict>
+  <!-- THIS FILE IS THE COPY OF RECORD — ~/Library/LaunchAgents/ holds the live one.
+       Edit here, then re-copy and re-bootstrap; never the other way round. On
+       2026-08-04 the ingest's schedule was changed in the live plist ONLY, so its
+       vault copy said 03/07/11 for a day while the job ran 08/12/16. aios-check.sh
+       compares every plist here against its installed twin for exactly that reason,
+       and picks this one up automatically — the loop globs hooks/*.plist.
+
+       Weekday 0 = Sunday. 09:00 is the real run; 13:00 and 17:00 are retries.
+       The retries exist because this job SHARES the ingest's lock (both write
+       after-action.md) and the 08:00 ingest can still hold it at 09:00 — a weekly
+       job that skips a whole week on a 15-minute overlap runs monthly. The script's
+       ISO-week stamp is what keeps three fires from becoming three passes.
+
+       Sunday because the register is a weekly-cadence artifact: rows accumulate at
+       ~6/day from three ingests, and the escalation threshold that matters is 30
+       days. Draining 5/week against that is a drip, not a flood — deliberately. A
+       pass that rewrote forty procedure files at once would be indistinguishable
+       from a bad one, and nothing downstream would catch it.
+
+       Same DarkWake caveat as com.aios.scheduled-ingest.plist: launchd wakes the
+       Mac to fire this and macOS re-sleeps ~40s later, which can kill the run
+       mid-stream on battery with the lid shut. Unfixed there, unfixed here —
+       cheaper here, since a --draft run applies nothing and losing it costs only
+       the next fire. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Weekday</key><integer>0</integer>
+      <key>Hour</key><integer>9</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key><integer>0</integer>
+      <key>Hour</key><integer>13</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key><integer>0</integer>
+      <key>Hour</key><integer>17</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+  </array>
+  <key>StandardErrorPath</key><string>__HOME__/Library/Logs/aios-register.launchd.log</string>
+  <key>StandardOutPath</key><string>__HOME__/Library/Logs/aios-register.launchd.log</string>
+  <key>RunAtLoad</key><false/>
+</dict>
+</plist>

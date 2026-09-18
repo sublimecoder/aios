@@ -50,9 +50,34 @@ If you'd rather see what it's going to ask before you commit to anything, read [
 | `AIOS/Systems/hooks/` | The cross-repo wire (below). |
 | `AIOS/Systems/templates/` | `CLAUDE.local.md` scaffold dropped into each wired repo. |
 | `.claude/agents/` | Subagents that keep read-heavy work out of your main context. |
-| `.claude/hooks/vault-write-guard.sh` | Mechanically enforces the vault's invariants. |
+| `.claude/hooks/vault-write-guard.sh` | Mechanically enforces the vault's invariants at write time (Rules A–G). |
+| `AIOS/Systems/hooks/rules-lib.sh` | The one place the guard's literal patterns live. Assignments only. |
+| `AIOS/Systems/aios-check.sh` | Health check. Prints only failures, exits 1 if any. Hang it off SessionStart. |
+| `AIOS/Systems/aios-install.sh` | Wires **this machine** to the vault. Idempotent, dry-run by default. |
+| `AIOS/Systems/aios-scheduler.sh` | Installs/moves the scheduled-ingest timers. Exactly one machine may own them. |
+| `AIOS/Systems/effort-table.md` | Task type → model. The one place model names live. |
+| `AIOS/Systems/reasoning-doctrine.md` | Standing cognitive procedures, written as orders, not advice. |
 | `scripts/aios-wire-repo.sh` | Connects a code repo to the vault. Idempotent; the only thing here that writes to a repo. |
-| `scripts/aios-install-nightly.sh` | Schedules the nightly ingest (launchd / cron). Fails closed if another vault holds the schedule. |
+| `scripts/aios-install-nightly.sh` | Older launchd/cron scheduler, superseded by `aios-scheduler.sh`. |
+
+## Is it actually wired?
+
+The rules above are enforced by hooks, and **each agent harness has its own hook
+table.** Claude Code reads `.claude/settings.json`, which is committed here, so
+cloning the repo wires it. Another harness reads a config that lives outside the
+repo — so a fresh machine can get a vault whose guard never runs, silently,
+because *an unenforced rule looks exactly like an obeyed one.*
+
+Two commands, both idempotent:
+
+```bash
+sh AIOS/Systems/aios-install.sh          # show what would change
+sh AIOS/Systems/aios-install.sh --apply  # wire it
+sh AIOS/Systems/aios-check.sh            # quiet when clean, exit 1 when not
+```
+
+`aios-check.sh` is the one to hang off SessionStart. It is detection only —
+nothing it reports does it fix — and every finding names the skill that does.
 
 ## The cross-repo wire
 

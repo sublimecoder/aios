@@ -123,7 +123,7 @@ if [ -z "$path" ]; then
       # A git C-quoted header path (bytes escaped as \ooo) can spell the vault's
       # name so the match above misses it; a quoted header holding a backslash is
       # refused from any repo. Backslashes in content lines are not headers.
-      if printf '%s\n' "$patch_text" | grep -q -E '^[[:space:]]*(\+\+\+|---|rename (from|to)|copy (from|to)|\*\*\*[^:]*:)[[:space:]]+"[^"]*\\'; then
+      if printf '%s\n' "$patch_text" | grep -q -E '^[[:space:]]*(\+\+\+|---|rename (from|to)|copy (from|to)|\*\*\*[^:]*:|Index:)[[:space:]]+"[^"]*\\|^diff .*"[^"]*\\'; then
         onto_vault=yes
       fi
       # A diff that creates or changes a SYMLINK (git mode 120000) is refused from

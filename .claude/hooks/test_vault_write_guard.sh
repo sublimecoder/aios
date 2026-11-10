@@ -287,6 +287,11 @@ index 0000000..e69de29
 +../$(basename "$TMP")
 \\ No newline at end of file
 ")" = 2 ] || fail "patch: a project-repo diff creating a symlink was allowed"
+[ "$(proj_patch "diff --git \"a/src/\\170\" \"b/src/\\170\"
+similarity index 100%
+rename from x
+rename to y
+")" = 2 ] || fail "patch: a C-quoted, escaped path on a 'diff --git' line was allowed"
 rm -rf "$PROJ"
 
 # --- `..` SEGMENTS ARE RESOLVED BEFORE ANY PATH RULE ---------------------------

@@ -126,6 +126,12 @@ if [ -z "$path" ]; then
       if printf '%s\n' "$patch_text" | grep -q -E '^[[:space:]]*(\+\+\+|---|rename (from|to)|copy (from|to)|\*\*\*[^:]*:)[[:space:]]+"[^"]*\\'; then
         onto_vault=yes
       fi
+      # A diff that creates or changes a SYMLINK (git mode 120000) is refused from
+      # any repo: `link -> ../<vault>` names the vault without a trailing `/`, and
+      # a later diff writing `link/work/sources/x` never names it at all.
+      if printf '%s\n' "$patch_text" | grep -q -E '^(new file mode|new mode|old mode|deleted file mode) 120000|^index [0-9a-f]+\.\.[0-9a-f]+ 120000'; then
+        onto_vault=yes
+      fi
     fi
     if [ "$onto_vault" = yes ]; then
       echo "BLOCKED: diff-shaped tools (patch / apply_patch) are not used on this vault. Their targets live inside the diff, and the guard cannot read every header form the way the tool does, so it cannot check them. Make the change with Edit or Write: the same rules then run on the real path." >&2

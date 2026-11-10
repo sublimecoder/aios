@@ -278,6 +278,15 @@ jq -n --arg d "--- a/src/x.c
 -a
 +printf(\"\\n\");
 ")" = 0 ] || fail "patch: over-matched, refused a project diff with a backslash in a content line"
+[ "$(proj_patch "diff --git a/link b/link
+new file mode 120000
+index 0000000..e69de29
+--- /dev/null
++++ b/link
+@@ -0,0 +1 @@
++../$(basename "$TMP")
+\\ No newline at end of file
+")" = 2 ] || fail "patch: a project-repo diff creating a symlink was allowed"
 rm -rf "$PROJ"
 
 # --- `..` SEGMENTS ARE RESOLVED BEFORE ANY PATH RULE ---------------------------

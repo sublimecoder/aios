@@ -107,12 +107,13 @@ fi
 if [ -z "$path" ]; then
   patch_text=$(printf '%s' "$input" | jq -r '.tool_input.patch_text // .tool_input.patch // .tool_input.diff // empty')
   if [ -n "$patch_text" ]; then
-    # Content: every added line minus its `+`. A `+++ ` line counts as a header
-    # (dropped) ONLY directly after a `--- ` line, where a unified header sits; a
-    # `++ `-led added line anywhere else is content, or a brand token on it would
-    # skip Rule C. Every other `+` line is kept, so an Add File made of `+`-led
-    # lines still reaches Rule B; empty content becomes one space for the same reason.
-    added=$(printf '%s\n' "$patch_text" | awk 'prev ~ /^--- / && /^\+\+\+ / { prev = $0; next } /^\+/ { print substr($0, 2) } { prev = $0 }')
+    # Content: EVERY `+`-led line minus its `+`, unified `+++ ` headers included.
+    # Telling a header from an added line that merely starts `++ ` needs hunk
+    # counting, and each shortcut tried left a way to hide a brand token from
+    # Rule C; keeping headers fails closed (a header path naming another layer's
+    # brand over-blocks, it never under-blocks). Empty content becomes one space
+    # so an Add File still reaches Rule B, which ignores empty writes.
+    added=$(printf '%s\n' "$patch_text" | sed -n 's/^+//p')
     # Headers are matched with optional leading whitespace (a tool may tolerate an
     # indented one). Only a unified `+++`/`---` header loses a TAB+timestamp
     # suffix; every other header keeps its whole line. Surrounding spaces and
@@ -139,10 +140,10 @@ if [ -z "$path" ]; then
       exit 2
     fi
     agent=$(printf '%s' "$input" | jq -r '.agent_id // empty')
-    check_target() { # $1 = a target as the patch names it; refuses the whole call on a hit
+    check_target() { # $1 = a target as the patch names it, $2 = tool (default Write); refuses the whole call on a hit
       case "$1" in /*) abs="$1" ;; *) abs="$repo/$1" ;; esac
-      sub=$(jq -n --arg p "$abs" --arg c "${added:- }" --arg a "$agent" \
-              '{tool_name:"Write", tool_input:{file_path:$p, content:$c}}
+      sub=$(jq -n --arg p "$abs" --arg c "${added:- }" --arg a "$agent" --arg t "${2:-Write}" \
+              '{tool_name:$t, tool_input:{file_path:$p, content:$c}}
                + (if $a == "" then {} else {agent_id:$a} end)')
       if ! err=$(printf '%s' "$sub" | CLAUDE_PROJECT_DIR="$repo" "$0" 2>&1); then
         printf '%s\n' "$err" >&2
@@ -152,9 +153,33 @@ if [ -z "$path" ]; then
     }
     # A git `a/` or `b/` prefix is checked BOTH as written and stripped: which
     # file the tool writes depends on the tool, so either being guarded refuses.
+    #
+    # A `..` segment in a diff target is refused outright: no legitimate patch
+    # needs one, and whether the tool resolves it the way the guard does is
+    # exactly the kind of difference that let writes through.
+    #
+    # A target holding a space is ALSO checked at every prefix that ends where a
+    # space begins: a tool that cuts a unified header at whitespace writes the
+    # prefix, and an exact-path rule (the doctrine files) misses the longer
+    # string. Prefixes go through as Edit, so Rule B's new-file check does not
+    # refuse a legitimate edit to an existing `My Bike.md` because `My` is new.
     while IFS= read -r t; do
-      check_target "$t"
-      [ "${t#[ab]/}" = "$t" ] || check_target "${t#[ab]/}"
+      case "/$t/" in
+        */../*)
+          echo "BLOCKED: the diff target '$t' contains a '..' segment. No legitimate patch needs one, and the guard and the patch tool may resolve it differently. Use Edit or Write with the real path." >&2
+          exit 2 ;;
+      esac
+      seen=""
+      for v in "$t" "${t#[ab]/}"; do
+        [ "$v" = "$seen" ] && continue
+        seen="$v"
+        check_target "$v"
+        case "$v" in
+          *" "*)
+            printf '%s\n' "$v" | awk '{ for (i = 2; i <= length($0); i++) if (substr($0, i, 1) == " ") print substr($0, 1, i - 1) }' \
+              | while IFS= read -r pre; do check_target "$pre" Edit; done || exit 2 ;;
+        esac
+      done
     done <<EOF
 $targets
 EOF

@@ -308,8 +308,33 @@ TAB=$(printf '\t')
  existing
 +++ acmecorp shipped it
 ")" = 2 ] || fail "patch_text: an added line starting '++ ' hid a work token from the leak check"
+[ "$(jc_patch "--- a/public/notes/x.md
++++ b/public/notes/x.md
+@@ -1,2 +1,2 @@
+ existing
+--- removed line
++++ acmecorp shipped it
+")" = 2 ] || fail "patch_text: a '--- '/'+++ ' pair inside a hunk hid a work token from the leak check"
+[ "$(jc_patch "--- a/work/sources/s.md /../../AIOS/ok.md
++++ b/work/sources/s.md /../../AIOS/ok.md
+@@ -1 +1 @@
+-a
++b
+")" = 2 ] || fail "patch_text: a space-cut header reached sources/"
+[ "$(jc_patch "--- a/AIOS/Systems/effort-table.md extra
++++ b/AIOS/Systems/effort-table.md extra
+@@ -1 +1 @@
+-a
++b
+")" = 2 ] || fail "patch_text: a space-cut header reached a doctrine file"
 # ...and the controls.
 echo old > "$TMP/public/notes/My Note.md"
+[ "$(jc_patch "--- a/public/notes/My Note.md
++++ b/public/notes/My Note.md
+@@ -1 +1 @@
+-old
++new
+")" = 0 ] || fail "patch_text: refused a legitimate unified edit to an existing file whose name has a space"
 [ "$(jc_patch "*** Begin Patch
 *** Update File: public/notes/My Note.md
 @@

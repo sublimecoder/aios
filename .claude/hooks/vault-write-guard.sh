@@ -87,108 +87,34 @@ if [ -n "$path" ]; then
   path="$norm"
 fi
 
-# --- DIFF-SHAPED TOOLS -------------------------------------------------------
-# A `patch` / `apply_patch` tool takes a unified diff and names its targets
-# INSIDE it. No `file_path` means `$path` is empty, which walks straight into
-# this file's own "no path -> allow" line — so Rules A, B, C, D and E are ALL
-# skipped by a tool the guard never knew existed.
-#
-# Handled by extracting what the rules need — the target paths and the ADDED
-# lines — rather than by teaching each rule about diffs. Only `+` lines are fed
-# to the content rules: a `-` line is text being REMOVED, and feeding it to the
-# leak tripwire would refuse a diff that DELETES a leak.
-#
-# MULTI-FILE DIFFS ARE CHECKED ONE TARGET AT A TIME by re-invoking this guard
-# per path with a synthesized Write payload. That reuses every rule verbatim
-# instead of duplicating their logic against a second input shape — the same
-# "normalize, do not branch" discipline as the harness block above. A refusal on
-# ANY target refuses the whole call: a patch applies atomically, so partial
-# approval is not a thing that exists.
+# ── DIFF-SHAPED TOOLS ARE REFUSED ON THE VAULT ──────────────────────────────────
+# `patch` / `apply_patch` tools carry no file_path: their targets live inside a
+# diff, and an empty $path used to walk straight into "no path -> allow" below.
+# Parsing those targets in shell was tried for five rounds on 2026-11-09, and in
+# every round an automated review found a header form (an absolute or quoted
+# path, a space, a TAB, a `..`, a `+++` line inside a hunk) that the guard and
+# the patch tool read differently. The vault's own rule is that writes go
+# through Edit or Write, so a diff-shaped call onto the vault is refused
+# outright: one made in a vault-shaped repo, or one whose diff names the vault
+# from another repo. Anywhere else it is left alone: jcode's hooks are global,
+# and this guard has no opinion on project-repo writes.
+GUARD_VAULT="$(CDPATH= cd "$(dirname "$0")/../.." 2>/dev/null && pwd)"
 if [ -z "$path" ]; then
   patch_text=$(printf '%s' "$input" | jq -r '.tool_input.patch_text // .tool_input.patch // .tool_input.diff // empty')
   if [ -n "$patch_text" ]; then
-    # Content: EVERY `+`-led line minus its `+`, unified `+++ ` headers included.
-    # Telling a header from an added line that merely starts `++ ` needs hunk
-    # counting, and each shortcut tried left a way to hide a brand token from
-    # Rule C; keeping headers fails closed (a header path naming another layer's
-    # brand over-blocks, it never under-blocks). Empty content becomes one space
-    # so an Add File still reaches Rule B, which ignores empty writes.
-    added=$(printf '%s\n' "$patch_text" | sed -n 's/^+//p')
-    # Headers are matched with optional leading whitespace (a tool may tolerate an
-    # indented one). Only a unified `+++`/`---` header loses a TAB+timestamp
-    # suffix; every other header keeps its whole line. Surrounding spaces and
-    # double quotes are stripped, /dev/null is skipped.
-    targets=$(printf '%s\n' "$patch_text" | sed -n \
-        -e 's/^[[:space:]]*+++ \([^	]*\).*$/\1/p' -e 's/^[[:space:]]*--- \([^	]*\).*$/\1/p' \
-        -e 's/^[[:space:]]*rename from \(.*\)$/\1/p' -e 's/^[[:space:]]*rename to \(.*\)$/\1/p' \
-        -e 's/^[[:space:]]*copy from \(.*\)$/\1/p' -e 's/^[[:space:]]*copy to \(.*\)$/\1/p' \
-        -e 's/^[[:space:]]*\*\*\* [^:]*: \(.*\)$/\1/p' \
-      | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' \
-      | grep -v -e '^/dev/null$' -e '^$' | sort -u)
-    # A diff with no target the parser can read was waved through: zero loop
-    # iterations, then "no path -> allow" below. Refuse it instead.
-    if [ -z "$targets" ]; then
-      echo "BLOCKED: this call carries a diff, but the guard found no target path in it (it reads unified-diff +++ and --- headers, git rename/copy lines and apply_patch *** <Verb>: headers). Refusing rather than letting an unchecked write through. Use Edit or Write, or a diff with standard headers." >&2
+    onto_vault=no
+    if [ -f "$repo/CLAUDE.md" ] && [ -d "$repo/AIOS" ]; then onto_vault=yes; fi
+    if [ -n "$GUARD_VAULT" ]; then
+      case "$repo/" in "$GUARD_VAULT"/*) onto_vault=yes ;; esac
+      case "$patch_text" in
+        *"$GUARD_VAULT"*|*"~/${GUARD_VAULT#"$HOME"/}"*|*"../${GUARD_VAULT##*/}/"*) onto_vault=yes ;;
+      esac
+    fi
+    if [ "$onto_vault" = yes ]; then
+      echo "BLOCKED: diff-shaped tools (patch / apply_patch) are not used on this vault. Their targets live inside the diff, and the guard cannot read every header form the way the tool does, so it cannot check them. Make the change with Edit or Write: the same rules then run on the real path." >&2
       exit 2
     fi
-    agent=$(printf '%s' "$input" | jq -r '.agent_id // empty')
-    check_target() { # $1 = a target as the patch names it, $2 = tool (default Write); refuses the whole call on a hit
-      case "$1" in /*) abs="$1" ;; *) abs="$repo/$1" ;; esac
-      sub=$(jq -n --arg p "$abs" --arg c "${added:- }" --arg a "$agent" --arg t "${2:-Write}" \
-              '{tool_name:$t, tool_input:{file_path:$p, content:$c}}
-               + (if $a == "" then {} else {agent_id:$a} end)')
-      if ! err=$(printf '%s' "$sub" | CLAUDE_PROJECT_DIR="$repo" "$0" 2>&1); then
-        printf '%s\n' "$err" >&2
-        echo "(refused via patch_text: this diff writes '$1'. A diff-shaped tool names its targets inside the patch instead of in file_path, so the guard resolves each one and applies the same rules.)" >&2
-        exit 2
-      fi
-    }
-    # A git `a/` or `b/` prefix is checked BOTH as written and stripped: which
-    # file the tool writes depends on the tool, so either being guarded refuses.
-    #
-    # A `..` segment in a diff target is refused outright: no legitimate patch
-    # needs one, and whether the tool resolves it the way the guard does is
-    # exactly the kind of difference that let writes through.
-    #
-    # A target holding a space is ALSO checked at every prefix that ends where a
-    # space begins: a tool that cuts a unified header at whitespace writes the
-    # prefix, and an exact-path rule (the doctrine files) misses the longer
-    # string. A prefix that already exists is checked as Edit; one that does not
-    # is checked as Write, so a cut that would CREATE `life/Gear/My` meets Rule B.
-    # Cost: a patch-tool edit to an existing spaced name under a Rule B directory
-    # is refused (its prefix is new), and Edit or Write is the way to make it.
-    #
-    # A target the guard and the patch tool could read differently is refused
-    # outright: any byte outside printable ASCII (TAB, CR, vertical tab, form
-    # feed, a Unicode space: one side may cut there, the other not) or a
-    # backslash (a git C-quoted path decodes `\ooo` escapes the guard does not).
-    while IFS= read -r t; do
-      case "/$t/" in
-        */../*)
-          echo "BLOCKED: the diff target '$t' contains a '..' segment. No legitimate patch needs one, and the guard and the patch tool may resolve it differently. Use Edit or Write with the real path." >&2
-          exit 2 ;;
-      esac
-      if printf '%s' "$t" | LC_ALL=C grep -q '[^ -~]' || case "$t" in *\\*) true ;; *) false ;; esac; then
-        echo "BLOCKED: a diff target holds a backslash or a byte outside printable ASCII (a tab, a control character, a non-ASCII space or letter), which the guard and the patch tool may read differently. Use Edit or Write for that file." >&2
-        exit 2
-      fi
-      seen=""
-      for v in "$t" "${t#[ab]/}"; do
-        [ "$v" = "$seen" ] && continue
-        seen="$v"
-        check_target "$v"
-        case "$v" in
-          *" "*)
-            printf '%s\n' "$v" | awk '{ for (i = 2; i <= length($0); i++) if (substr($0, i, 1) == " ") print substr($0, 1, i - 1) }' \
-              | while IFS= read -r pre; do
-                  case "$pre" in /*) a="$pre" ;; *) a="$repo/$pre" ;; esac
-                  if [ -e "$a" ]; then check_target "$pre" Edit; else check_target "$pre"; fi
-                done || exit 2 ;;
-        esac
-      done
-    done <<EOF
-$targets
-EOF
+    exit 0
   fi
 fi
 
@@ -208,7 +134,6 @@ esac
 # vault when an agent edits the vault from another repo. Re-anchor to the vault
 # this guard lives in whenever the write actually targets it, so `rel` below is
 # vault-relative and the scope rules see the path they expect.
-GUARD_VAULT="$(CDPATH= cd "$(dirname "$0")/../.." 2>/dev/null && pwd)"
 if [ -n "$GUARD_VAULT" ] && [ -f "$GUARD_VAULT/CLAUDE.md" ] && [ -d "$GUARD_VAULT/AIOS" ]; then
   case "$path" in
     "$GUARD_VAULT"/*) repo="$GUARD_VAULT" ;;

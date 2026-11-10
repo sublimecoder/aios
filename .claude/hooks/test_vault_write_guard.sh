@@ -198,177 +198,65 @@ jq -n --arg c "echo hi >work/projects/x.md" --arg d "$TMP" '{command:$c, cwd:$d}
   | JCODE_HOOK_TOOL_NAME=bash JCODE_HOOK_CWD="$TMP" "$HOOK" >/dev/null 2>&1 || rc=$?
 [ "$rc" = 2 ] || fail "a lowercase 'bash' tool name skipped Rule F's whole branch"
 
-# --- DIFF-SHAPED TOOLS -------------------------------------------------------
-# A patch tool names its targets inside the diff. No file_path means every path
-# rule is skipped unless the targets are extracted.
-diff_blocked=$(printf '%s\n' \
-  '--- a/work/sources/x.md' '+++ b/work/sources/x.md' '@@ -1 +1 @@' '-old' '+new')
-rc=0
-jq -n --arg d "$diff_blocked" '{patch_text:$d}' \
-  | JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$TMP" "$HOOK" >/dev/null 2>&1 || rc=$?
-[ "$rc" = 2 ] || fail "a unified diff targeting sources/ walked past every path rule"
-
-# Only ADDED lines reach the content rules: a diff that DELETES a leak is a fix,
-# and refusing it would pin the leak in place.
-diff_removes=$(printf '%s\n' \
-  '--- a/public/notes/x.md' '+++ b/public/notes/x.md' '@@ -1 +1 @@' '-acmecorp is our vendor' '+our vendor')
-rc=0
-jq -n --arg d "$diff_removes" '{patch_text:$d}' \
-  | JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$TMP" "$HOOK" >/dev/null 2>&1 || rc=$?
-[ "$rc" = 0 ] || fail "the guard refused a diff that REMOVES a leak — only '+' lines are content"
-
-# A tool with no path and no diff is not a write and must not be refused.
-rc=0
-printf '%s' '{"intent":"just looking"}' \
-  | JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$TMP" "$HOOK" >/dev/null 2>&1 || rc=$?
-[ "$rc" = 0 ] || fail "refused a payload carrying neither a path nor a diff"
-
-# --- PATHS ARE NORMALIZED, DIFF TARGETS ARE PARSED WHOLE -----------------------
-# Every path rule matches the scope-relative path as a string, so an unresolved
-# `..` matched none of them; and a diff whose target the parser could not read
-# (an apply_patch `*** Update File:` header, an absolute bare `+++`, a path with a
-# space) fell through to "no path -> allow".
+# --- DIFF-SHAPED TOOLS ARE REFUSED ON THE VAULT ------------------------------
+# A `patch` / `apply_patch` tool names its targets inside a diff, and parsing
+# them in shell kept finding header forms the guard and the tool read
+# differently. A diff-shaped call onto the vault is refused outright; one in
+# another repo is left alone (a harness may run this hook globally).
 jc_patch() { # $1=diff body -> exit code
   rc=0
   jq -n --arg d "$1" '{patch_text:$d}' \
     | JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$TMP" "$HOOK" >/dev/null 2>&1 || rc=$?
   echo "$rc"
 }
+[ "$(jc_patch "--- /dev/null
++++ b/open/notes/draft.md
+@@ -0,0 +1 @@
++a normal draft
+")" = 2 ] || fail "patch: a unified diff onto the vault was allowed"
+[ "$(jc_patch "*** Begin Patch
+*** Update File: open/notes/x.md
+@@
+-old
++new
+*** End Patch
+")" = 2 ] || fail "patch: an apply_patch body onto the vault was allowed"
+rc=0
+printf '%s' '{"intent":"just looking"}' \
+  | JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$TMP" "$HOOK" >/dev/null 2>&1 || rc=$?
+[ "$rc" = "0" ] || fail "patch: refused a payload carrying neither a path nor a diff"
+PROJ="$TMP.proj"; mkdir -p "$PROJ"
+proj_patch() { # $1=diff body, run as a project-repo session -> exit code
+  rc=0
+  jq -n --arg d "$1" '{patch_text:$d}' \
+    | CLAUDE_PROJECT_DIR="$PROJ" JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$PROJ" "$HOOK" >/dev/null 2>&1 || rc=$?
+  echo "$rc"
+}
+[ "$(proj_patch "--- a/src/x.c
++++ b/src/x.c
+@@ -1 +1 @@
+-a
++b
+")" = 0 ] || fail "patch: refused a project-repo diff (the guard must stay out of other repos)"
+[ "$(proj_patch "--- /dev/null
++++ $TMP/work/sources/x.md
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch: a project-repo diff naming the vault by absolute path was allowed"
+[ "$(proj_patch "--- /dev/null
++++ ../$(basename "$TMP")/work/sources/x.md
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch: a project-repo diff reaching the vault through '../<vault>/' was allowed"
+rm -rf "$PROJ"
+
+# --- `..` SEGMENTS ARE RESOLVED BEFORE ANY PATH RULE ---------------------------
 [ "$(run_write "$TMP/AIOS/History/../../work/sources/x.md" "anything")" = 2 ] \
 || fail "dotdot: Rule A did not block a write reaching sources/ through '..'"
 [ "$(run_write "AIOS/../work/sources/rel.md" "anything")" = 2 ] \
 || fail "dotdot: a RELATIVE file_path reaching sources/ through '..' was allowed"
 [ "$(CLAUDE_PROJECT_DIR="$TMP/" run_write "$TMP/work/sources/ts.md" "anything")" = 2 ] \
 || fail "dotdot: a trailing '/' on CLAUDE_PROJECT_DIR let a sources/ write through"
-[ "$(jc_patch "*** Begin Patch
-*** Update File: work/sources/s.md
-@@
--old
-+new
-*** End Patch
-")" = 2 ] || fail "apply_patch: Rule A did not block '*** Update File:' into sources/"
-[ "$(jc_patch "*** Begin Patch
-*** Add File: work/notes/PlusNote.md
-++ one
-+++ two
-*** End Patch
-")" = 2 ] || fail "apply_patch: an Add File of '+'-led lines created a notes/ note"
-[ "$(jc_patch "@@ -1 +1 @@
--a
-+b
-")" = 2 ] || fail "patch_text: a diff with no readable target was allowed"
-[ "$(jc_patch "--- /dev/null
-+++ b/open/notes/fine.md
-@@ -0,0 +1 @@
-+ok
---- /dev/null
-+++ $TMP/work/sources/abs.md
-@@ -0,0 +1 @@
-+x
-")" = 2 ] || fail "patch_text: a decoy target carried an absolute bare header into sources/"
-[ "$(jc_patch "*** Begin Patch
-*** Update File: AIOS/x y/../../work/sources/s.md
-@@
--a
-+b
-*** End Patch
-")" = 2 ] || fail "apply_patch: a space in the path hid a '..' route into sources/"
-[ "$(jc_patch "--- /dev/null
-+++ \"b/work/sources/q.md\"
-@@ -0,0 +1 @@
-+x
-")" = 2 ] || fail "patch_text: a double-quoted header path into sources/ was allowed"
-TAB=$(printf '\t')
-[ "$(jc_patch "*** Begin Patch
-*** Update File: AIOS/x${TAB}/../../work/sources/s.md
-@@
--a
-+b
-*** End Patch
-")" = 2 ] || fail "apply_patch: a TAB inside a path hid a '..' route into sources/"
-[ "$(jc_patch "*** Begin Patch
-*** Update File: open/notes/x.md
-@@
--a
-+b
-  *** Update File: work/sources/s.md
-@@
--a
-+b
-*** End Patch
-")" = 2 ] || fail "apply_patch: an indented header behind a decoy target reached sources/"
-[ "$(jc_patch "--- /dev/null
-+++ \"b/work/\\163ources/x.md\"
-@@ -0,0 +1 @@
-+x
-")" = 2 ] || fail "patch_text: a git C-quoted path with an escape was allowed"
-[ "$(jc_patch "--- a/public/notes/x.md
-+++ b/public/notes/x.md
-@@ -1 +1,2 @@
- existing
-+++ acmecorp shipped it
-")" = 2 ] || fail "patch_text: an added line starting '++ ' hid a work token from the leak check"
-[ "$(jc_patch "--- a/public/notes/x.md
-+++ b/public/notes/x.md
-@@ -1,2 +1,2 @@
- existing
---- removed line
-+++ acmecorp shipped it
-")" = 2 ] || fail "patch_text: a '--- '/'+++ ' pair inside a hunk hid a work token from the leak check"
-[ "$(jc_patch "--- a/work/sources/s.md /../../AIOS/ok.md
-+++ b/work/sources/s.md /../../AIOS/ok.md
-@@ -1 +1 @@
--a
-+b
-")" = 2 ] || fail "patch_text: a space-cut header reached sources/"
-[ "$(jc_patch "--- a/AIOS/Systems/effort-table.md extra
-+++ b/AIOS/Systems/effort-table.md extra
-@@ -1 +1 @@
--a
-+b
-")" = 2 ] || fail "patch_text: a space-cut header reached a doctrine file"
-# ...and the controls.
-mkdir -p "$TMP/public/projects"; echo old > "$TMP/public/projects/My Plan.md"
-[ "$(jc_patch "--- a/public/projects/My Plan.md
-+++ b/public/projects/My Plan.md
-@@ -1 +1 @@
--old
-+new
-")" = 0 ] || fail "patch_text: refused a legitimate unified edit to an existing file whose name has a space"
-[ "$(jc_patch "*** Begin Patch
-*** Update File: public/projects/My Plan.md
-@@
--old
-+new
-*** End Patch
-")" = 0 ] || fail "apply_patch: refused a legitimate edit to an existing file whose name has a space"
-[ "$(jc_patch "*** Begin Patch
-*** Delete File: open/notes/x.md
-*** End Patch
-")" = 0 ] || fail "apply_patch: refused a Delete File of an unguarded path"
-
-echo old > "$TMP/public/notes/Old Note.md"
-[ "$(jc_patch "--- a/public/notes/Old Note.md
-+++ b/public/notes/Old Note.md
-@@ -1 +1 @@
--old
-+new
-")" = 2 ] || fail "patch_text: a space-cut header could create the new note 'public/notes/Old'"
-VT=$(printf '\v'); NBSP=$(printf '\302\240')
-[ "$(jc_patch "*** Begin Patch
-*** Update File: public/projects/a${VT}b.md
-@@
--a
-+b
-*** End Patch
-")" = 2 ] || fail "apply_patch: a vertical tab inside a target was allowed"
-[ "$(jc_patch "*** Begin Patch
-*** Update File: public/projects/a${NBSP}b.md
-@@
--a
-+b
-*** End Patch
-")" = 2 ] || fail "apply_patch: a non-ASCII space inside a target was allowed"
 
 # --- UNKNOWN TOOL NAMES FAIL CLOSED ------------------------------------------
 # Rule B dispatches on the tool name, so a CREATING tool spelled anything else

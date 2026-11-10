@@ -278,6 +278,36 @@ jc_patch() { # $1=diff body -> exit code
 @@ -0,0 +1 @@
 +x
 ")" = 2 ] || fail "patch_text: a double-quoted header path into sources/ was allowed"
+TAB=$(printf '\t')
+[ "$(jc_patch "*** Begin Patch
+*** Update File: AIOS/x${TAB}/../../work/sources/s.md
+@@
+-a
++b
+*** End Patch
+")" = 2 ] || fail "apply_patch: a TAB inside a path hid a '..' route into sources/"
+[ "$(jc_patch "*** Begin Patch
+*** Update File: open/notes/x.md
+@@
+-a
++b
+  *** Update File: work/sources/s.md
+@@
+-a
++b
+*** End Patch
+")" = 2 ] || fail "apply_patch: an indented header behind a decoy target reached sources/"
+[ "$(jc_patch "--- /dev/null
++++ \"b/work/\\163ources/x.md\"
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch_text: a git C-quoted path with an escape was allowed"
+[ "$(jc_patch "--- a/public/notes/x.md
++++ b/public/notes/x.md
+@@ -1 +1,2 @@
+ existing
++++ acmecorp shipped it
+")" = 2 ] || fail "patch_text: an added line starting '++ ' hid a work token from the leak check"
 # ...and the controls.
 echo old > "$TMP/public/notes/My Note.md"
 [ "$(jc_patch "*** Begin Patch

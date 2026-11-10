@@ -107,21 +107,31 @@ fi
 if [ -z "$path" ]; then
   patch_text=$(printf '%s' "$input" | jq -r '.tool_input.patch_text // .tool_input.patch // .tool_input.diff // empty')
   if [ -n "$patch_text" ]; then
-    # Content: every added line minus its `+`. A `+++ ` header line is dropped
-    # (it is a path), and an added line whose own text starts `++ ` goes with it
-    # because the two cannot be told apart. The old pattern dropped EVERY added
-    # line starting `+`, so an Add File made only of such lines arrived empty and
-    # skipped Rule B, which ignores empty writes; empty content becomes one space.
-    added=$(printf '%s\n' "$patch_text" | sed -n '/^+++ /d; s/^+//p')
-    # A trailing TAB+timestamp is cut (only at a TAB), surrounding spaces and
+    # Content: every added line minus its `+`. A `+++ ` line counts as a header
+    # (dropped) ONLY directly after a `--- ` line, where a unified header sits; a
+    # `++ `-led added line anywhere else is content, or a brand token on it would
+    # skip Rule C. Every other `+` line is kept, so an Add File made of `+`-led
+    # lines still reaches Rule B; empty content becomes one space for the same reason.
+    added=$(printf '%s\n' "$patch_text" | awk 'prev ~ /^--- / && /^\+\+\+ / { prev = $0; next } /^\+/ { print substr($0, 2) } { prev = $0 }')
+    # Headers are matched with optional leading whitespace (a tool may tolerate an
+    # indented one). Only a unified `+++`/`---` header loses a TAB+timestamp
+    # suffix; every other header keeps its whole line. Surrounding spaces and
     # double quotes are stripped, /dev/null is skipped.
     targets=$(printf '%s\n' "$patch_text" | sed -n \
-        -e 's/^+++ \(.*\)$/\1/p' -e 's/^--- \(.*\)$/\1/p' \
-        -e 's/^rename from \(.*\)$/\1/p' -e 's/^rename to \(.*\)$/\1/p' \
-        -e 's/^copy from \(.*\)$/\1/p' -e 's/^copy to \(.*\)$/\1/p' \
-        -e 's/^\*\*\* [^:]*: \(.*\)$/\1/p' \
-      | sed -e 's/	.*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' \
+        -e 's/^[[:space:]]*+++ \([^	]*\).*$/\1/p' -e 's/^[[:space:]]*--- \([^	]*\).*$/\1/p' \
+        -e 's/^[[:space:]]*rename from \(.*\)$/\1/p' -e 's/^[[:space:]]*rename to \(.*\)$/\1/p' \
+        -e 's/^[[:space:]]*copy from \(.*\)$/\1/p' -e 's/^[[:space:]]*copy to \(.*\)$/\1/p' \
+        -e 's/^[[:space:]]*\*\*\* [^:]*: \(.*\)$/\1/p' \
+      | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' \
       | grep -v -e '^/dev/null$' -e '^$' | sort -u)
+    # A target the guard and the patch tool could read differently is refused
+    # outright: a TAB or CR inside it (one side cuts there, the other may not), or
+    # a backslash (a git C-quoted path decodes `\ooo` escapes the guard does not).
+    case "$targets" in
+      *"$(printf '\t')"*|*"$(printf '\r')"*|*\\*)
+        echo "BLOCKED: a target path in this diff holds a tab, carriage return or backslash, which the guard and the patch tool may read differently. Refusing rather than guessing. Use Edit or Write for that file." >&2
+        exit 2 ;;
+    esac
     # A diff with no target the parser can read was waved through: zero loop
     # iterations, then "no path -> allow" below. Refuse it instead.
     if [ -z "$targets" ]; then

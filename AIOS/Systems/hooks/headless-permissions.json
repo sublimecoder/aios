@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git push origin main)",
+      "Bash(git push origin HEAD)",
+      "Bash(git pull --rebase)",
+      "Bash(git pull --rebase origin main)",
+      "Bash(git pull --ff-only)",
+      "Bash(git pull --ff-only origin main)",
+      "Bash(git fetch)",
+      "Bash(git fetch origin)",
+      "Bash(git fetch -q origin)",
+      "Bash(git fetch origin main)",
+      "Bash(sh AIOS/Systems/archive-ledger.sh:*)",
+      "Bash(sh AIOS/Systems/km-measure.sh:*)",
+      "Bash(sh AIOS/Systems/aios-check.sh:*)",
+      "Bash(sh AIOS/Systems/ship-state.sh:*)",
+      "Bash(sh AIOS/Systems/resolve-project.sh:*)",
+      "Bash(sh AIOS/Systems/classify-skill.sh:*)",
+      "Bash(python3 AIOS/Systems/provenance-rotate.py:*)",
+      "Bash(cut:*)",
+      "Bash(tr:*)",
+      "Bash(comm:*)",
+      "Bash(paste:*)",
+      "Bash(date:*)",
+      "Bash(printf:*)",
+      "Bash(test:*)",
+      "Bash(mkdir:*)",
+      "Bash(jq:*)",
+      "Bash(basename:*)",
+      "Bash(dirname:*)"
+    ],
+    "deny": [
+      "Edit(AIOS/Systems/**)",
+      "Write(AIOS/Systems/**)",
+      "Edit(.claude/**)",
+      "Write(.claude/**)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(nc:*)",
+      "Bash(git remote:*)",
+      "Bash(git config:*)",
+      "Bash(git ls-remote:*)"
+    ]
+  }
+}

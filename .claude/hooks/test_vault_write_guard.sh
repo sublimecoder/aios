@@ -223,6 +223,75 @@ printf '%s' '{"intent":"just looking"}' \
   | JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$TMP" "$HOOK" >/dev/null 2>&1 || rc=$?
 [ "$rc" = 0 ] || fail "refused a payload carrying neither a path nor a diff"
 
+# --- PATHS ARE NORMALIZED, DIFF TARGETS ARE PARSED WHOLE -----------------------
+# Every path rule matches the scope-relative path as a string, so an unresolved
+# `..` matched none of them; and a diff whose target the parser could not read
+# (an apply_patch `*** Update File:` header, an absolute bare `+++`, a path with a
+# space) fell through to "no path -> allow".
+jc_patch() { # $1=diff body -> exit code
+  rc=0
+  jq -n --arg d "$1" '{patch_text:$d}' \
+    | JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$TMP" "$HOOK" >/dev/null 2>&1 || rc=$?
+  echo "$rc"
+}
+[ "$(run_write "$TMP/AIOS/History/../../work/sources/x.md" "anything")" = 2 ] \
+|| fail "dotdot: Rule A did not block a write reaching sources/ through '..'"
+[ "$(run_write "AIOS/../work/sources/rel.md" "anything")" = 2 ] \
+|| fail "dotdot: a RELATIVE file_path reaching sources/ through '..' was allowed"
+[ "$(CLAUDE_PROJECT_DIR="$TMP/" run_write "$TMP/work/sources/ts.md" "anything")" = 2 ] \
+|| fail "dotdot: a trailing '/' on CLAUDE_PROJECT_DIR let a sources/ write through"
+[ "$(jc_patch "*** Begin Patch
+*** Update File: work/sources/s.md
+@@
+-old
++new
+*** End Patch
+")" = 2 ] || fail "apply_patch: Rule A did not block '*** Update File:' into sources/"
+[ "$(jc_patch "*** Begin Patch
+*** Add File: work/notes/PlusNote.md
+++ one
++++ two
+*** End Patch
+")" = 2 ] || fail "apply_patch: an Add File of '+'-led lines created a notes/ note"
+[ "$(jc_patch "@@ -1 +1 @@
+-a
++b
+")" = 2 ] || fail "patch_text: a diff with no readable target was allowed"
+[ "$(jc_patch "--- /dev/null
++++ b/open/notes/fine.md
+@@ -0,0 +1 @@
++ok
+--- /dev/null
++++ $TMP/work/sources/abs.md
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch_text: a decoy target carried an absolute bare header into sources/"
+[ "$(jc_patch "*** Begin Patch
+*** Update File: AIOS/x y/../../work/sources/s.md
+@@
+-a
++b
+*** End Patch
+")" = 2 ] || fail "apply_patch: a space in the path hid a '..' route into sources/"
+[ "$(jc_patch "--- /dev/null
++++ \"b/work/sources/q.md\"
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch_text: a double-quoted header path into sources/ was allowed"
+# ...and the controls.
+echo old > "$TMP/public/notes/My Note.md"
+[ "$(jc_patch "*** Begin Patch
+*** Update File: public/notes/My Note.md
+@@
+-old
++new
+*** End Patch
+")" = 0 ] || fail "apply_patch: refused a legitimate edit to an existing file whose name has a space"
+[ "$(jc_patch "*** Begin Patch
+*** Delete File: open/notes/x.md
+*** End Patch
+")" = 0 ] || fail "apply_patch: refused a Delete File of an unguarded path"
+
 # --- UNKNOWN TOOL NAMES FAIL CLOSED ------------------------------------------
 # Rule B dispatches on the tool name, so a CREATING tool spelled anything else
 # walks past it. Unknown names default to Write; this pins that a future harness

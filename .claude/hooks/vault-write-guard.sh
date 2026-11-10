@@ -65,6 +65,27 @@ fi
 path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')
 tool=$(printf '%s' "$input" | jq -r '.tool_name // empty')
 repo="${CLAUDE_PROJECT_DIR:-${JCODE_HOOK_CWD:-$PWD}}"
+# Lexical: collapses `.`, `..`, `//` and a trailing `/`; no symlink resolution.
+norm_path() { P="$1" perl -e 'my @o; for (split m{/}, $ENV{P}) { next if $_ eq "" || $_ eq "."; if ($_ eq "..") { pop @o; next } push @o, $_ } print "/" . join("/", @o)' 2>/dev/null; }
+# $repo too: every rule strips "$repo/" off the path, and a CLAUDE_PROJECT_DIR
+# ending in `/` (or holding `..`) made that strip miss, so nothing matched.
+case "$repo" in /*) r=$(norm_path "$repo") && [ -n "$r" ] && repo="$r" ;; esac
+
+# ── `..` SEGMENTS ARE RESOLVED HERE, BEFORE ANY RULE SEES THE PATH ──────────────
+# Every rule below matches the vault-relative path as a STRING, so an unresolved
+# `AIOS/History/../../work/sources/x.md` matched none of them and the write to
+# sources/ was allowed. Lexical, like
+# Rule F's resolver: no symlink resolution, and the file need not exist yet.
+# Fails CLOSED: a path that cannot be normalized is refused, never checked raw.
+if [ -n "$path" ]; then
+  case "$path" in /*) ;; *) path="$repo/$path" ;; esac
+  norm=$(norm_path "$path")
+  if [ -z "$norm" ]; then
+    echo "BLOCKED: the vault write guard could not normalize the path '$path' (is perl missing?), so it refuses the write rather than check an unresolved path." >&2
+    exit 2
+  fi
+  path="$norm"
+fi
 
 # --- DIFF-SHAPED TOOLS -------------------------------------------------------
 # A `patch` / `apply_patch` tool takes a unified diff and names its targets
@@ -86,22 +107,47 @@ repo="${CLAUDE_PROJECT_DIR:-${JCODE_HOOK_CWD:-$PWD}}"
 if [ -z "$path" ]; then
   patch_text=$(printf '%s' "$input" | jq -r '.tool_input.patch_text // .tool_input.patch // .tool_input.diff // empty')
   if [ -n "$patch_text" ]; then
-    added=$(printf '%s' "$patch_text" | sed -n 's/^+\([^+].*\)$/\1/p; s/^+$//p')
-    targets=$(printf '%s' "$patch_text" \
-      | sed -n 's|^+++ [ab]/\(.*\)$|\1|p; s|^+++ \([^ab/].*\)$|\1|p' \
-      | sed 's/[[:space:]].*$//' | grep -v '^/dev/null$' | sort -u)
-    for t in $targets; do
-      case "$t" in /*) abs="$t" ;; *) abs="$repo/$t" ;; esac
-      sub=$(jq -n --arg p "$abs" --arg c "$added" \
-              --arg a "$(printf '%s' "$input" | jq -r '.agent_id // empty')" \
+    # Content: every added line minus its `+`. A `+++ ` header line is dropped
+    # (it is a path), and an added line whose own text starts `++ ` goes with it
+    # because the two cannot be told apart. The old pattern dropped EVERY added
+    # line starting `+`, so an Add File made only of such lines arrived empty and
+    # skipped Rule B, which ignores empty writes; empty content becomes one space.
+    added=$(printf '%s\n' "$patch_text" | sed -n '/^+++ /d; s/^+//p')
+    # A trailing TAB+timestamp is cut (only at a TAB), surrounding spaces and
+    # double quotes are stripped, /dev/null is skipped.
+    targets=$(printf '%s\n' "$patch_text" | sed -n \
+        -e 's/^+++ \(.*\)$/\1/p' -e 's/^--- \(.*\)$/\1/p' \
+        -e 's/^rename from \(.*\)$/\1/p' -e 's/^rename to \(.*\)$/\1/p' \
+        -e 's/^copy from \(.*\)$/\1/p' -e 's/^copy to \(.*\)$/\1/p' \
+        -e 's/^\*\*\* [^:]*: \(.*\)$/\1/p' \
+      | sed -e 's/	.*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' \
+      | grep -v -e '^/dev/null$' -e '^$' | sort -u)
+    # A diff with no target the parser can read was waved through: zero loop
+    # iterations, then "no path -> allow" below. Refuse it instead.
+    if [ -z "$targets" ]; then
+      echo "BLOCKED: this call carries a diff, but the guard found no target path in it (it reads unified-diff +++ and --- headers, git rename/copy lines and apply_patch *** <Verb>: headers). Refusing rather than letting an unchecked write through. Use Edit or Write, or a diff with standard headers." >&2
+      exit 2
+    fi
+    agent=$(printf '%s' "$input" | jq -r '.agent_id // empty')
+    check_target() { # $1 = a target as the patch names it; refuses the whole call on a hit
+      case "$1" in /*) abs="$1" ;; *) abs="$repo/$1" ;; esac
+      sub=$(jq -n --arg p "$abs" --arg c "${added:- }" --arg a "$agent" \
               '{tool_name:"Write", tool_input:{file_path:$p, content:$c}}
                + (if $a == "" then {} else {agent_id:$a} end)')
       if ! err=$(printf '%s' "$sub" | CLAUDE_PROJECT_DIR="$repo" "$0" 2>&1); then
         printf '%s\n' "$err" >&2
-        echo "(refused via patch_text: this diff writes '$t'. A diff-shaped tool names its targets inside the patch instead of in file_path, so the guard resolves each one and applies the same rules.)" >&2
+        echo "(refused via patch_text: this diff writes '$1'. A diff-shaped tool names its targets inside the patch instead of in file_path, so the guard resolves each one and applies the same rules.)" >&2
         exit 2
       fi
-    done
+    }
+    # A git `a/` or `b/` prefix is checked BOTH as written and stripped: which
+    # file the tool writes depends on the tool, so either being guarded refuses.
+    while IFS= read -r t; do
+      check_target "$t"
+      [ "${t#[ab]/}" = "$t" ] || check_target "${t#[ab]/}"
+    done <<EOF
+$targets
+EOF
   fi
 fi
 

@@ -26,7 +26,8 @@
 # /usr/bin/core_perl is where Arch puts `shasum` (perl-Digest-SHA); without it
 # the guard-drift stamp is unverifiable under this stripped PATH. /opt/homebrew
 # stays for the macOS side -- an absent dir on PATH costs nothing.
-PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/bin:/usr/bin/core_perl:/bin"
+# mise: Claude Code may live under mise rather than ~/.local/bin; an absent dir costs nothing.
+PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:/opt/homebrew/bin:/usr/bin:/usr/bin/core_perl:/bin"
 # The plist passes AIOS_VAULT; honor it rather than hardcoding, so the two cannot
 # silently disagree if the vault ever moves.
 VAULT="${AIOS_VAULT:-$HOME/code/aios}"
@@ -179,6 +180,11 @@ find "$AIOS_LOGDIR" -name 'aios-register-transcript-*.log' -mtime +14 -delete 2>
 # Scoped allowlist, not --dangerously-skip-permissions. --draft writes exactly two
 # things — register annotations and a Log line — plus the commit; the
 # vault-write-guard PreToolUse hook still constrains where any write can land.
+# Bash is not granted whole: headless-permissions.json allows only the write/exec
+# commands the skills run and denies network tools and edits to AIOS/Systems and
+# .claude. A PreToolUse hook that REWRITES Bash commands (RTK and similar) makes
+# them match none of those rules; have it skip when this variable is set.
+export AIOS_HEADLESS_PERMISSIONS=1
 cd "$VAULT" && nosleep timeout -k 300 1800 claude -p "/after-action-apply $ROWS --draft
 
 You are the scheduled weekly register pass, launched by aios-weekly-register.sh. The \`.aios-ingest.lock\` directory and any running \`claude -p\` process you may find are YOUR OWN — the wrapper took the lock before starting you. Do not interpret them as a concurrent run and do not stand down.
@@ -191,7 +197,8 @@ THEN, SEPARATELY, run a WHOLE-NOTE wall sweep over the $WALL_LAYER layer — dis
 
 No human is attached to this run and no answer will ever come back. Never end your turn on a question — decide, act, and finish. If a register-worker dies, retry it once; if it still fails, record that row as un-verdicted this pass and move to the next. Always finish by writing the one Log line and committing." \
   --permission-mode acceptEdits \
-  --allowedTools "Read,Write,Edit,Grep,Glob,Bash,Task,TodoWrite" \
+  --allowedTools "Read,Write,Edit,Grep,Glob,Task,TodoWrite" \
+  --settings "$VAULT/AIOS/Systems/hooks/headless-permissions.json" \
   > "$TRANSCRIPT" 2>&1
 
 # An expired/revoked OAuth token exits 0 and writes nothing, so it would otherwise

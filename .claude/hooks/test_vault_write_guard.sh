@@ -267,6 +267,17 @@ jq -n --arg d "--- a/src/x.c
 " '{patch_text:$d}' \
   | CLAUDE_PROJECT_DIR="$(dirname "$TMP")" JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$(dirname "$TMP")" "$HOOK" >/dev/null 2>&1 || rc=$?
 [ "$rc" = "2" ] || fail "patch: a diff from a session rooted ABOVE the vault was allowed"
+[ "$(proj_patch "--- /dev/null
++++ \"b/src/\\170.c\"
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch: a C-quoted, escaped header path was allowed"
+[ "$(proj_patch "--- a/src/y.c
++++ b/src/y.c
+@@ -1 +1 @@
+-a
++printf(\"\\n\");
+")" = 0 ] || fail "patch: over-matched, refused a project diff with a backslash in a content line"
 rm -rf "$PROJ"
 
 # --- `..` SEGMENTS ARE RESOLVED BEFORE ANY PATH RULE ---------------------------

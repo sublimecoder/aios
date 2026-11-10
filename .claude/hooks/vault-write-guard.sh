@@ -120,6 +120,12 @@ if [ -z "$path" ]; then
       case "$(lc "$patch_text")" in
         *"$vname/"*|*"${pname:-$vname}/"*) onto_vault=yes ;;
       esac
+      # A git C-quoted header path (bytes escaped as \ooo) can spell the vault's
+      # name so the match above misses it; a quoted header holding a backslash is
+      # refused from any repo. Backslashes in content lines are not headers.
+      if printf '%s\n' "$patch_text" | grep -q -E '^[[:space:]]*(\+\+\+|---|rename (from|to)|copy (from|to)|\*\*\*[^:]*:)[[:space:]]+"[^"]*\\'; then
+        onto_vault=yes
+      fi
     fi
     if [ "$onto_vault" = yes ]; then
       echo "BLOCKED: diff-shaped tools (patch / apply_patch) are not used on this vault. Their targets live inside the diff, and the guard cannot read every header form the way the tool does, so it cannot check them. Make the change with Edit or Write: the same rules then run on the real path." >&2

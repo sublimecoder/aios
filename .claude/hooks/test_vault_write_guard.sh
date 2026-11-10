@@ -307,6 +307,10 @@ index 0000000..e69de29
 @@ -0,0 +1 @@
 +x
 ")" = 0 ] || fail "patch: over-matched, refused a project diff adding a regular 100644 file"
+[ "$(proj_patch "  DIFF   --git \"a/src/\\170\" \"b/src/\\170\"
+rename  from x
+rename  to y
+")" = 2 ] || fail "patch: an indented, mixed-case 'diff' line with a C-quoted escape was allowed"
 rm -rf "$PROJ"
 
 # --- `..` SEGMENTS ARE RESOLVED BEFORE ANY PATH RULE ---------------------------

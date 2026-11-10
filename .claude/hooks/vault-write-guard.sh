@@ -125,14 +125,6 @@ if [ -z "$path" ]; then
         -e 's/^[[:space:]]*\*\*\* [^:]*: \(.*\)$/\1/p' \
       | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' \
       | grep -v -e '^/dev/null$' -e '^$' | sort -u)
-    # A target the guard and the patch tool could read differently is refused
-    # outright: a TAB or CR inside it (one side cuts there, the other may not), or
-    # a backslash (a git C-quoted path decodes `\ooo` escapes the guard does not).
-    case "$targets" in
-      *"$(printf '\t')"*|*"$(printf '\r')"*|*\\*)
-        echo "BLOCKED: a target path in this diff holds a tab, carriage return or backslash, which the guard and the patch tool may read differently. Refusing rather than guessing. Use Edit or Write for that file." >&2
-        exit 2 ;;
-    esac
     # A diff with no target the parser can read was waved through: zero loop
     # iterations, then "no path -> allow" below. Refuse it instead.
     if [ -z "$targets" ]; then
@@ -161,14 +153,25 @@ if [ -z "$path" ]; then
     # A target holding a space is ALSO checked at every prefix that ends where a
     # space begins: a tool that cuts a unified header at whitespace writes the
     # prefix, and an exact-path rule (the doctrine files) misses the longer
-    # string. Prefixes go through as Edit, so Rule B's new-file check does not
-    # refuse a legitimate edit to an existing `My Bike.md` because `My` is new.
+    # string. A prefix that already exists is checked as Edit; one that does not
+    # is checked as Write, so a cut that would CREATE `life/Gear/My` meets Rule B.
+    # Cost: a patch-tool edit to an existing spaced name under a Rule B directory
+    # is refused (its prefix is new), and Edit or Write is the way to make it.
+    #
+    # A target the guard and the patch tool could read differently is refused
+    # outright: any byte outside printable ASCII (TAB, CR, vertical tab, form
+    # feed, a Unicode space: one side may cut there, the other not) or a
+    # backslash (a git C-quoted path decodes `\ooo` escapes the guard does not).
     while IFS= read -r t; do
       case "/$t/" in
         */../*)
           echo "BLOCKED: the diff target '$t' contains a '..' segment. No legitimate patch needs one, and the guard and the patch tool may resolve it differently. Use Edit or Write with the real path." >&2
           exit 2 ;;
       esac
+      if printf '%s' "$t" | LC_ALL=C grep -q '[^ -~]' || case "$t" in *\\*) true ;; *) false ;; esac; then
+        echo "BLOCKED: a diff target holds a backslash or a byte outside printable ASCII (a tab, a control character, a non-ASCII space or letter), which the guard and the patch tool may read differently. Use Edit or Write for that file." >&2
+        exit 2
+      fi
       seen=""
       for v in "$t" "${t#[ab]/}"; do
         [ "$v" = "$seen" ] && continue
@@ -177,7 +180,10 @@ if [ -z "$path" ]; then
         case "$v" in
           *" "*)
             printf '%s\n' "$v" | awk '{ for (i = 2; i <= length($0); i++) if (substr($0, i, 1) == " ") print substr($0, 1, i - 1) }' \
-              | while IFS= read -r pre; do check_target "$pre" Edit; done || exit 2 ;;
+              | while IFS= read -r pre; do
+                  case "$pre" in /*) a="$pre" ;; *) a="$repo/$pre" ;; esac
+                  if [ -e "$a" ]; then check_target "$pre" Edit; else check_target "$pre"; fi
+                done || exit 2 ;;
         esac
       done
     done <<EOF

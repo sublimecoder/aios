@@ -328,15 +328,15 @@ TAB=$(printf '\t')
 +b
 ")" = 2 ] || fail "patch_text: a space-cut header reached a doctrine file"
 # ...and the controls.
-echo old > "$TMP/public/notes/My Note.md"
-[ "$(jc_patch "--- a/public/notes/My Note.md
-+++ b/public/notes/My Note.md
+mkdir -p "$TMP/public/projects"; echo old > "$TMP/public/projects/My Plan.md"
+[ "$(jc_patch "--- a/public/projects/My Plan.md
++++ b/public/projects/My Plan.md
 @@ -1 +1 @@
 -old
 +new
 ")" = 0 ] || fail "patch_text: refused a legitimate unified edit to an existing file whose name has a space"
 [ "$(jc_patch "*** Begin Patch
-*** Update File: public/notes/My Note.md
+*** Update File: public/projects/My Plan.md
 @@
 -old
 +new
@@ -346,6 +346,29 @@ echo old > "$TMP/public/notes/My Note.md"
 *** Delete File: open/notes/x.md
 *** End Patch
 ")" = 0 ] || fail "apply_patch: refused a Delete File of an unguarded path"
+
+echo old > "$TMP/public/notes/Old Note.md"
+[ "$(jc_patch "--- a/public/notes/Old Note.md
++++ b/public/notes/Old Note.md
+@@ -1 +1 @@
+-old
++new
+")" = 2 ] || fail "patch_text: a space-cut header could create the new note 'public/notes/Old'"
+VT=$(printf '\v'); NBSP=$(printf '\302\240')
+[ "$(jc_patch "*** Begin Patch
+*** Update File: public/projects/a${VT}b.md
+@@
+-a
++b
+*** End Patch
+")" = 2 ] || fail "apply_patch: a vertical tab inside a target was allowed"
+[ "$(jc_patch "*** Begin Patch
+*** Update File: public/projects/a${NBSP}b.md
+@@
+-a
++b
+*** End Patch
+")" = 2 ] || fail "apply_patch: a non-ASCII space inside a target was allowed"
 
 # --- UNKNOWN TOOL NAMES FAIL CLOSED ------------------------------------------
 # Rule B dispatches on the tool name, so a CREATING tool spelled anything else

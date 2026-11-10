@@ -1,0 +1,20 @@
+[Unit]
+Description=AIOS weekly register pass — Sunday 09:00 with 13:00 and 17:00 retries
+
+[Timer]
+# THE RETRIES ARE NOT OPTIONAL, and the port plan's first draft dropped them.
+# com.aios.weekly-register.plist fires Sunday 09:00, 13:00 AND 17:00, because this
+# job SHARES the ingest's lock -- both write after-action.md -- and the 08:00
+# ingest can still hold it at 09:00. A weekly job that skips a whole week on a
+# fifteen-minute overlap runs MONTHLY. The script's ISO-week stamp is what keeps
+# three fires from becoming three passes, so the extra entries are free.
+#
+# Sunday because the register is a weekly-cadence artifact: rows accumulate at
+# ~6/day from three ingests and the escalation threshold is 30 days. Draining
+# ~5/week against that is a drip by design -- a pass that rewrote forty procedure
+# files at once would be indistinguishable from a bad one.
+OnCalendar=Sun *-*-* 09,13,17:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

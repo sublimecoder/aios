@@ -106,8 +106,19 @@ if [ -z "$path" ]; then
     if [ -f "$repo/CLAUDE.md" ] && [ -d "$repo/AIOS" ]; then onto_vault=yes; fi
     if [ -n "$GUARD_VAULT" ]; then
       case "$repo/" in "$GUARD_VAULT"/*) onto_vault=yes ;; esac
-      case "$patch_text" in
-        *"$GUARD_VAULT"*|*"~/${GUARD_VAULT#"$HOME"/}"*|*"../${GUARD_VAULT##*/}/"*) onto_vault=yes ;;
+      # A session rooted ABOVE the vault (say ~/code) reaches it with a plain relative path.
+      case "$GUARD_VAULT/" in "$repo"/*) onto_vault=yes ;; esac
+      # By the vault directory's NAME followed by `/`, anywhere in the diff, not by
+      # one relative spelling: `../../code/<vault>/` slipped past `../<vault>/`.
+      # The physical name (pwd -P) too, for a vault reached through a symlink.
+      # Case-insensitive, as macOS filesystems are. Over-blocks a project diff
+      # touching a directory of the same name; fails closed. Not covered: a
+      # symlink alias to the vault under a DIFFERENT name.
+      lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+      vname=$(lc "${GUARD_VAULT##*/}")
+      pname="$(CDPATH= cd "$GUARD_VAULT" 2>/dev/null && pwd -P)"; pname=$(lc "${pname##*/}")
+      case "$(lc "$patch_text")" in
+        *"$vname/"*|*"${pname:-$vname}/"*) onto_vault=yes ;;
       esac
     fi
     if [ "$onto_vault" = yes ]; then

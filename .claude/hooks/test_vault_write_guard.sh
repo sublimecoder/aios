@@ -248,6 +248,25 @@ proj_patch() { # $1=diff body, run as a project-repo session -> exit code
 @@ -0,0 +1 @@
 +x
 ")" = 2 ] || fail "patch: a project-repo diff reaching the vault through '../<vault>/' was allowed"
+[ "$(proj_patch "--- /dev/null
++++ ../../somewhere/$(basename "$TMP")/work/sources/x.md
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch: a project-repo diff reaching the vault through a longer relative path was allowed"
+[ "$(proj_patch "--- /dev/null
++++ ../$(basename "$TMP" | tr '[:lower:]' '[:upper:]')/work/sources/x.md
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch: a project-repo diff naming the vault in another letter case was allowed"
+rc=0
+jq -n --arg d "--- a/src/x.c
++++ b/src/x.c
+@@ -1 +1 @@
+-a
++b
+" '{patch_text:$d}' \
+  | CLAUDE_PROJECT_DIR="$(dirname "$TMP")" JCODE_HOOK_TOOL_NAME=patch JCODE_HOOK_CWD="$(dirname "$TMP")" "$HOOK" >/dev/null 2>&1 || rc=$?
+[ "$rc" = "2" ] || fail "patch: a diff from a session rooted ABOVE the vault was allowed"
 rm -rf "$PROJ"
 
 # --- `..` SEGMENTS ARE RESOLVED BEFORE ANY PATH RULE ---------------------------

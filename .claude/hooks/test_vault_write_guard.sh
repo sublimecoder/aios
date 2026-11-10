@@ -292,6 +292,21 @@ similarity index 100%
 rename from x
 rename to y
 ")" = 2 ] || fail "patch: a C-quoted, escaped path on a 'diff --git' line was allowed"
+[ "$(proj_patch "diff --git a/link b/link
+NEW  File Mode 0120000
+--- /dev/null
++++ b/link
+@@ -0,0 +1 @@
++x
+")" = 2 ] || fail "patch: an oddly spelled symlink mode line was allowed"
+[ "$(proj_patch "diff --git a/src/n.c b/src/n.c
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/n.c
+@@ -0,0 +1 @@
++x
+")" = 0 ] || fail "patch: over-matched, refused a project diff adding a regular 100644 file"
 rm -rf "$PROJ"
 
 # --- `..` SEGMENTS ARE RESOLVED BEFORE ANY PATH RULE ---------------------------

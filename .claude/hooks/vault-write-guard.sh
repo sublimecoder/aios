@@ -126,10 +126,15 @@ if [ -z "$path" ]; then
       if printf '%s\n' "$patch_text" | grep -q -E '^[[:space:]]*(\+\+\+|---|rename (from|to)|copy (from|to)|\*\*\*[^:]*:|Index:)[[:space:]]+"[^"]*\\|^diff .*"[^"]*\\'; then
         onto_vault=yes
       fi
-      # A diff that creates or changes a SYMLINK (git mode 120000) is refused from
-      # any repo: `link -> ../<vault>` names the vault without a trailing `/`, and
-      # a later diff writing `link/work/sources/x` never names it at all.
-      if printf '%s\n' "$patch_text" | grep -q -E '^(new file mode|new mode|old mode|deleted file mode) 120000|^index [0-9a-f]+\.\.[0-9a-f]+ 120000'; then
+      # Any file MODE other than a regular file is refused from any repo: a symlink
+      # (`link -> ../<vault>` names the vault without a trailing `/`, and a later
+      # diff writing `link/work/sources/x` never names it), a submodule, or a mode
+      # line spelled any way but exactly 100644 / 100755. Mode-ish lines are found
+      # loosely (spacing, case) and must then match strictly, so oddities fail closed.
+      modes=$(printf '%s\n' "$patch_text" | tr '[:upper:]' '[:lower:]' \
+        | grep -E '^[[:space:]]*((new[[:space:]]+file|deleted[[:space:]]+file|new|old)[[:space:]]+mode|index[[:space:]]+[0-9a-f]+\.\.[0-9a-f]+[[:space:]]+[^[:space:]])')
+      if [ -n "$modes" ] && printf '%s\n' "$modes" \
+           | grep -q -v -E '^[[:space:]]*((new[[:space:]]+file|deleted[[:space:]]+file|new|old)[[:space:]]+mode|index[[:space:]]+[0-9a-f]+\.\.[0-9a-f]+)[[:space:]]+0*100(644|755)[[:space:]]*$'; then
         onto_vault=yes
       fi
     fi
